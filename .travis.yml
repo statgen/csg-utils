@@ -7,7 +7,7 @@ before_install:
   - mysql -e "create database IF NOT EXISTS test;" -uroot
   - cpanm -nq Carton
 install:
-  - carton install
+  - carton install --deployment
 services:
   - mysql
 env:
@@ -16,3 +16,6 @@ env:
     - SLOTS_DB_HOST="127.0.0.1"
     - SLOTS_DB_USER="travis"
     - SLOTS_DB_PASS=""
+branches:
+  only:
+    - master
