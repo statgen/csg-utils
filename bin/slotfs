@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use FindBin qw($Bin);
+use local::lib qq($Bin/../local);
+use lib qq($Bin/../lib/perl5);
+use English qw(-no_match_vars);
+use File::Basename;
+
+use CSG::Storage::SlotFS;
+
+if (-l $PROGRAM_NAME) {
+  (my $project = basename($PROGRAM_NAME)) =~ s/fs$//g;
+  push @ARGV, ('--project', $project);
+}
+
+CSG::Storage::SlotFS->run;

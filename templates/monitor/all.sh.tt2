@@ -1,0 +1,58 @@
+#!/bin/sh
+
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --time=28-0
+#SBATCH --partition=[% settings.project %]
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --job-name=monitor-[% settings.project %]-hg[% settings.build %]
+
+JOB_ID=$SLURM_JOB_ID
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l qos=flux,procs=1,walltime=672:00:00,mem=1gb
+#PBS -m abe
+#PBS -M [% job.email %]
+#PBS -A [% job.account %]
+#PBS -q flux
+#PBS -V
+#PBS -j oe
+#PBS -d [% job.workdir %]
+#PBS -N monitor-[% settings.project %]-hg[% settings.build %]
+
+JOB_ID=$PBS_JOBID
+[% END -%]
+MAPPER_CMD=[% settings.mapper_cmd %]
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+$MAPPER_CMD log --message "starting monitor process for [% settings.project %] build hg[% settings.build %]"
+
+while true; do
+  remaining=$($MAPPER_CMD stat --cluster [% settings.cluster %] --time-left --job-id $JOB_ID)
+  job_limit=$(cat [% settings.control_dir %]/monitor_max_jobs_launch)
+  min_time_left=$(cat [% settings.control_dir %]/monitor_min_time_left)
+  sleep_delay=$(cat [% settings.control_dir %]/monitor_sleep)
+
+  if [ -z $remaining ]; then
+    $MAPPER_CMD log --message "unable to determine time remaining [$remaining] for job [$JOB_ID]" --level critical
+    exit 1
+  fi
+
+  if [ $remaining -gt $min_time_left ]; then
+    $MAPPER_CMD log --message "launching $job_limit more job(s) [remaining: ${remaining}h]"
+    $MAPPER_CMD launch --cluster [% settings.cluster %] --project [% settings.project %] --build [% settings.build %] --limit $job_limit --verbose
+  else
+    $MAPPER_CMD log --message "resubmitting and exiting [remaining: ${remaining}h]" --level notice
+    $MAPPER_CMD monitor --cluster [% settings.cluster %] --project [% settings.project %] --build [% settings.build %]
+    exit 0
+  fi
+
+  $MAPPER_CMD log --message "sleeping for $sleep_delay before launching more jobs"
+  sleep $sleep_delay
+
+done
+
+# vi: ft=sh

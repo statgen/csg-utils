@@ -1,0 +1,112 @@
+#!/bin/sh
+
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=[% job.procs %]
+#SBATCH --mem=[% job.memory %]
+#SBATCH --gres=tmp:200
+#SBATCH --time=[% job.walltime %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --partition=topmed
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --job-name=[% job.job_name %]
+#SBATCH --dependency=afterok:[% job.job_dep_id %]
+#SBATCH --nodelist=[% job.nodelist %]
+
+JOB_ID=$SLURM_JOB_ID
+NODELIST=$SLURM_JOB_NODELIST
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l nodes=1:ppn=[% job.procs %]
+#PBS -l walltime=[% job.walltime %]
+#PBS -l pmem=[% job.memory %]gb
+#PBS -m a
+#PBS -d [% job.workdir %]
+#PBS -M [% job.email %]
+#PBS -q flux
+#PBS -l qos=flux
+#PBS -A [% job.account %]
+#PBS -V
+#PBS -j oe
+#PBS -N [% job.job_name %]
+#PBS -W depend=afterok:[% job.job_dep_id %]
+
+JOB_ID=$PBS_JOBID
+NODELIST=$(cat $PBS_NODEFILE)
+[% END -%]
+
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
+
+OUT_DIR=[% settings.out_dir %]
+TMP_DIR=[% settings.tmp_dir %]
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step align
+
+if [ ! -e $OUT_DIR ]; then
+  $MAPPER_LOG_CMD --message 'OUT_DIR is missing' --level critical
+  exit 1
+fi
+
+$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_LOG_CMD --message 'begining gotcloud alignment'
+
+[% gotcloud.cmd %] align \
+  --gcroot       [% gotcloud.root %] \
+  --conf         [% gotcloud.conf %] \
+  --threads      [% settings.threads %] \
+  --outdir       $OUT_DIR \
+  --fastqlist    ${TMP_DIR}/fastq.list \
+  --override     "TMP_DIR=$TMP_DIR" \
+  --ref_dir      [% gotcloud.ref_dir %] \
+  --maxlocaljobs [% settings.threads %]
+
+rc=$?
+$MAPPER_LOG_CMD --message "align_rc: $rc"
+
+if [ "$rc" -eq 0 ]; then
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  $MAPPER_LOG_CMD --message 'alignment completed'
+  $MAPPER_LOG_CMD --message "purging $TMP_DIR on $NODELIST"
+  rm -rf $TMP_DIR
+else
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+  $MAPPER_LOG_CMD --message "alignment failed with exit code $rc" --level critical
+
+  if [ ! -e $RUN_DIR ]; then
+    $MAPPER_LOG_CMD --message 'RUN_DIR does not exist' --level critical
+    exit $rc
+  fi
+
+  mv $TMP_DIR $RUN_DIR
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --mesage 'failed to move TMP_DIR to RUN_DIR' --level critical
+    exit $rc
+  fi
+
+  max_runs=[% settings.max_failed_runs %]
+  run_count=$(find $RUN_DIR -maxdepth 1 -type d|wc -l)
+  runs=$(find $RUN_DIR/* -maxdepth 1 -type d|sort)
+
+  if [ $run_count -gt $max_runs ]; then
+    count=0
+    for run in $runs; do
+      if [ $(($run_count - $max_runs)) -gt $count ]; then
+        $MAPPER_LOG_CMD --message "purging sample [$(basename $run)] from RUN_DIR"
+        rm -rf $run
+      fi
+
+      count=$(($count + 1))
+    done
+  fi
+fi
+
+exit $rc
+
+# vi: ft=sh

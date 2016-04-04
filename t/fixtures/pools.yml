@@ -1,0 +1,20 @@
+-
+  name: 'foo1'
+  hostname: 'foo1.localhost'
+  size_used: '200T'
+  size_total: '400T'
+  path: '/working/slots1'
+  type: 'file'
+  project: 'proj1'
+-
+  name: 'foo2'
+  hostname: 'foo2.localhost'
+  size_used: '300T'
+  size_total: '400T'
+  path: '/working/slots2'
+  type: 'file'
+  project: 'proj1'
+  slots:
+    -
+      name: 'foo'
+      size: '50G'

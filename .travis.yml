@@ -1,0 +1,18 @@
+language: perl
+perl:
+  - "5.14.2"
+  - "5.10.1"
+before_install:
+  - cpanm -nq --local-lib=~/perl5 local::lib && eval $(perl -I ~/perl5/lib/perl5/ -Mlocal::lib)
+  - mysql -e "create database IF NOT EXISTS test;" -uroot
+  - cpanm -nq Carton
+install:
+  - carton install
+services:
+  - mysql
+env:
+  global:
+    - SLOTS_DB="test"
+    - SLOTS_DB_HOST="127.0.0.1"
+    - SLOTS_DB_USER="travis"
+    - SLOTS_DB_PASS=""

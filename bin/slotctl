@@ -1,0 +1,10 @@
+#!/usr/bin/env perl
+
+use FindBin qw($Bin);
+use local::lib qq($Bin/../local);
+use lib qq($Bin/../lib/perl5);
+
+use CSG::Storage::SlotCtl;
+
+$ARGV[0] =~ s/^(add|list)-/\1_/g;
+CSG::Storage::SlotCtl->run;
