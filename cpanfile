@@ -16,6 +16,10 @@ requires 'Number::Bytes::Human';
 requires 'Moose';
 requires 'MooseX::AbstractFactory';
 
+requires 'DateTime';
+requires 'DateTime::Duration';
+requires 'DateTime::Format::MySQL';
+
 requires 'DBD::mysql';
 requires 'DBD::SQLite';
 requires 'DBIx::Class';
