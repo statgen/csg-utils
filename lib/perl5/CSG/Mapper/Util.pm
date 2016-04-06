@@ -26,6 +26,8 @@ our %EXPORT_TAGS = (
 sub parse_align_status {
   my $file = shift;
 
+  die;
+
   my @results = ();
   for my $line (read_lines($file)) {
     chomp($line);

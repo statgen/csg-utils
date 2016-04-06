@@ -11,6 +11,7 @@ our @IMPORT_MODULES = (
     Readonly
     autodie
     Try::Tiny
+    IO::All
     ),
   'English'         => [qw(-no_match_vars)],
   'List::MoreUtils' => [qw()],
@@ -29,35 +30,33 @@ our %IMPORT_BUNDLES = (
   ],
   file => [
     qw(
-      IO::All
       File::Spec
       File::Basename
       File::Stat
       Path::Class
       ),
-    'File::Path'        => [qw(make_path remove_tree)],
-    'File::Slurp::Tiny' => [qw(read_file read_lines)],
+    'File::Path' => [qw(make_path remove_tree)],
   ],
   formats => [
     qw(
       YAML
-    )
+      )
   ],
   logging => [
     qw(
       Log::Dispatch
       Log::Dispatch::Screen
-    )
+      )
   ],
   parsers => [
     qw(
       Class::CSV
-    )
+      )
   ],
   templates => [
     qw(
       Template
-    )
+      )
   ],
   test => [
     qw(
