@@ -7,7 +7,7 @@ before_install:
   - mysql -e "create database IF NOT EXISTS test;" -uroot
   - cpanm -nq Carton
 install:
-  - carton install --deployment
+  - carton install
 services:
   - mysql
 env:
