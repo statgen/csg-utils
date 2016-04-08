@@ -4,10 +4,13 @@ package CSG::Mapper::Sample;
 use CSG::Base qw(file);
 use CSG::Mapper::Config;
 use CSG::Mapper::Exceptions;
+use CSG::Storage::Slots;
 
 use Moose;
+use Module::Load;
 
 has '_conf' => (is => 'ro', isa => 'CSG::Mapper::Config', lazy => 1, builder => '_build_conf');
+has 'slot' => (is => 'ro', isa => 'Maybe[ValidSlotFSProject]', lazy => 1, builder => '_build_slot', predicate => 'has_slot');
 
 has 'cluster' => (is => 'ro', isa => 'ValidCluster',                            required => 1);
 has 'build'   => (is => 'ro', isa => 'Int',                                     required => 1);
@@ -23,12 +26,45 @@ has 'filename'      => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_
 has 'sample_id'     => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_sample_id');
 has 'incoming_path' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_incoming_path', predicate => 'has_incoming_path');
 has 'result_path'   => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_result_path');
+has 'build_str'     => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_build_str');
+has 'log_dir'       => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_log_dir');
+has 'cram'          => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_cram');
+has 'crai'          => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_crai');
 
-has 'cram' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_cram');
-has 'crai' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_crai');
+has 'state_dir' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_state_dir',
+);
+
+before [qw(incoming_path result_path)] => sub {
+  shift->slot;
+};
 
 sub _build_conf {
   return CSG::Mapper::Config->new(project => 'topmed');
+}
+
+sub _build_slot {
+  my ($self) = @_;
+
+  my $class = 'CSG::Storage::SlotFS::' . ucfirst(lc($self->project));
+  my $slot  = undef;
+
+  try {
+    load $class;
+
+    $slot = $class->find(
+      name   => $self->sample_id,
+      prefix => $self->prefix,
+    );
+  }
+  catch {
+    CSG::Mapper::Sample::Exceptions::Sample::SlotFailed->throw($_);
+  };
+
+  return $slot;
 }
 
 sub _build_prefix {
@@ -67,17 +103,24 @@ sub _build_sample_id {
 sub _build_incoming_path {
   my ($self) = @_;
 
-  my $incoming_dir = $self->_conf->get($self->project, 'incoming_dir');
-  my $backup_dir   = $self->_conf->get($self->project, 'backup_dir');
-  my $base_dir = File::Spec->join($self->prefix, $self->host);
+  my ($bam, $cram) = (undef, undef);
 
-  # Original BAM path:
-  # /<prefix>/<host>/<project_incoming_dir>/<center>/<run_dir>/<filename>
-  my $bam = File::Spec->join($base_dir, $incoming_dir, $self->center, $self->run_dir, $self->filename);
+  if ($self->has_slot) {
+    $bam  = File::Spec->join($self->slot->incoming_path, $self->filename);
+    $cram = File::Spec->join($self->slot->incoming_path,  $self->sample_id . '.src.cram');
+  } else {
+    my $incoming_dir = $self->_conf->get($self->project, 'incoming_dir');
+    my $backup_dir   = $self->_conf->get($self->project, 'backup_dir');
+    my $base_dir     = File::Spec->join($self->prefix, $self->host);
 
-  # Backed up/squeezed path:
-  # /<prefix>/<host>/<project_backup_dir>/<project_incoming_dir>/<center>/<run_dir>/<sample_id>.src.cram
-  my $cram = File::Spec->join($base_dir, $backup_dir, $incoming_dir, $self->center, $self->run_dir, $self->sample_id . '.src.cram');
+    # Original BAM path:
+    # /<prefix>/<host>/<project_incoming_dir>/<center>/<run_dir>/<filename>
+    $bam = File::Spec->join($base_dir, $incoming_dir, $self->center, $self->run_dir, $self->filename);
+
+    # Backed up/squeezed path:
+    # /<prefix>/<host>/<project_backup_dir>/<project_incoming_dir>/<center>/<run_dir>/<sample_id>.src.cram
+    $cram = File::Spec->join($base_dir, $backup_dir, $incoming_dir, $self->center, $self->run_dir, $self->sample_id . '.src.cram');
+  }
 
   return $bam  if -e $bam;
   return $cram if -e $cram;
@@ -88,9 +131,10 @@ sub _build_incoming_path {
 sub _build_result_path {
   my ($self) = @_;
 
-  # /<prefix>/<host>/<project_resutls_dir>/<center>/<pi>/hg<build>/<sample_id>
+  return File::Spec->join($self->slot->mapping_path, $self->build_str) if $self->has_slot;
+
   my $results_dir = $self->_conf->get($self->project, 'results_dir');
-  return File::Spec->join($self->prefix, $self->host, $results_dir, $self->center, $self->pi, 'hg' . $self->build, $self->sample_id);
+  return File::Spec->join($self->prefix, $self->host, $results_dir, $self->center, $self->pi, $self->build_str, $self->sample_id);
 }
 
 sub _build_cram {
@@ -100,6 +144,31 @@ sub _build_cram {
 
 sub _build_crai {
   return shift->cram . '.crai';
+}
+
+sub _build_build_str {
+  return 'hg' . shift->build;
+}
+
+sub _build_log_dir {
+  my ($self) = @_;
+
+  return $self->slot->log_path if $self->has_slot;
+
+  my $log_dir = $self->_conf->get($self->project, 'log_dir');
+  my $workdir = $self->_conf->get($self->project, 'workdir');
+  return File::Spec->join($self->prefix, $workdir, $log_dir, $self->center, $self->pi, $self->sample_id);
+}
+
+sub _build_state_dir {
+  my ($self) = @_;
+
+  return $self->slot->run_path if $self->has_slot;
+
+  my $workdir = $self->_conf->get($self->project, 'workdir');
+  my $run_dir = $config->get($project, 'run_dir');
+
+  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->build_str);
 }
 
 sub is_complete {

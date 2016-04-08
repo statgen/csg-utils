@@ -24,6 +24,9 @@ use Exception::Class (
     description => 'Sample not found on disk',
     fields      => [qw(bam_path cram_path)],
   },
+  __PACKAGE__ . '::Sample::SlotFailed' => {
+    description => 'Failed to load the slot for this sample',
+  },
 );
 
 1;

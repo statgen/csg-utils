@@ -29,6 +29,11 @@ subtype 'Directory',
   where {-d $_},
   message { 'directory does not exist' };
 
+subtype 'ValidSlotFSProject',
+  as 'Object',
+  where {ref $_ =~ /^CSG::Storage::SlotFS/},
+  message {'is not a valid slotfs project'};
+
 no Moose::Util::TypeConstraints;
 
 1;

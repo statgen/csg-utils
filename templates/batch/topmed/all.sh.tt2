@@ -40,11 +40,8 @@ MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
 MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
 
 OUT_DIR=[% settings.out_dir %]
-# OUT_DIR=$(slotfs path --project [% settings.project %] --name [% sample.sample_id %] --path mapping)
 TMP_DIR=[% settings.tmp_dir %]/$JOB_ID
 RUN_DIR=[% settings.run_dir %]
-# RUN_DIR=$(slotfs path --project [% settings.project %] --name [% sample.sample_id %] --path run)
-# JOB_LOG="$(slotfs path --project [% settings.project %] --name [% sample.sample_id %] --path logs)/job_log.yml"
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
@@ -110,7 +107,6 @@ $MAPPER_LOG_CMD --message "delaying execution for [% settings.delay %] minutes"
 sleep "[% settings.delay %]m"
 
 $MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
-# $MAPPER_CMD show --meta-id $META_ID --info > $JOB_LOG
 $MAPPER_LOG_CMD --message 'beginning [% settings.pipeline %] pipeline'
 
 [% gotcloud.cmd %] pipe \
