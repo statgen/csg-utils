@@ -51,7 +51,8 @@ sub execute {
 
     if ($opts->{build} eq '37') {
       # TODO - all paths for hg37 were built with previous toolsets and different paths
-      $line_ref->{cram} = sprintf '/net/topmed/working/schelcj/results/%s/%s/%s/bams/%s.recal.cram',
+      $line_ref->{cram} = sprintf '/net/%s/working/schelcj/results/%s/%s/%s/bams/%s.recal.cram',
+        $sample->host,
         $sample->center->name,
         $sample->pi->name,
         $sample->sample_id,

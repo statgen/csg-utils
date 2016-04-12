@@ -10,7 +10,7 @@ use File::Path qw(make_path);
 our $VERSION = '0.1';
 
 Readonly::Scalar my $PROJECT => 'topmed';
-Readonly::Array my @PATHS    => (qw(incoming backup mapping logs run info));
+Readonly::Array my @PATHS    => (qw(incoming results logs run info));
 
 has 'size'    => (is => 'ro', isa => 'Int', lazy => 1, builder => '_build_size');
 has 'factor'  => (is => 'ro', isa => 'Int', default => sub {4});

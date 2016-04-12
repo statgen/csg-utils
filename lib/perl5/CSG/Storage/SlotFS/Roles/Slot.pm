@@ -11,11 +11,33 @@ use CSG::Storage::Types;
 
 requires qw(size to_string project);
 
-has 'name'    => (is => 'ro', isa => 'Str',             required => 1);
-has 'prefix'  => (is => 'ro', isa => 'ValidPrefixPath', default  => sub {'/net'});
+has 'name' => (
+  is       => 'ro',
+  isa      => 'Str',
+  required => 1,
+);
 
-has 'path' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_path');
-has 'slot' => (is => 'ro', isa => 'CSG::Storage::Slots', lazy => 1, builder => '_build_slot',);
+has 'prefix' => (
+  is      => 'ro',
+  isa     => 'ValidPrefixPath',
+  default => sub {
+    return '/net';
+  },
+);
+
+has 'path' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_path',
+);
+
+has 'slot' => (
+  is      => 'ro',
+  isa     => 'CSG::Storage::Slots',
+  lazy    => 1,
+  builder => '_build_slot',
+);
 
 sub _build_slot {
   my ($self) = @_;
@@ -30,6 +52,15 @@ sub _build_slot {
 sub _build_path {
   my ($self) = @_;
   return File::Spec->join($self->prefix, $self->slot->path);
+}
+
+sub find {
+  my ($self) = @_;
+
+  my $slot = CSG::Storage::Slots->find(
+    name    => $self->name,
+    project => $self->project,
+  );
 }
 
 1;

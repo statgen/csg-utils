@@ -5,12 +5,25 @@ use CSG::Base qw(file);
 use CSG::Mapper::Config;
 use CSG::Mapper::Exceptions;
 use CSG::Storage::Slots;
+use CSG::Types;
 
 use Moose;
 use Module::Load;
 
-has '_conf' => (is => 'ro', isa => 'CSG::Mapper::Config', lazy => 1, builder => '_build_conf');
-has 'slot' => (is => 'ro', isa => 'Maybe[ValidSlotFSProject]', lazy => 1, builder => '_build_slot', predicate => 'has_slot');
+has '_conf' => (
+  is      => 'ro',
+  isa     => 'CSG::Mapper::Config',
+  lazy    => 1,
+  builder => '_build_conf'
+);
+
+has 'slot' => (
+  is        => 'ro',
+  isa       => 'Maybe[ValidSlotFSProject]',
+  lazy      => 1,
+  builder   => '_build_slot',
+  predicate => 'has_slot'
+);
 
 has 'cluster' => (is => 'ro', isa => 'ValidCluster',                            required => 1);
 has 'build'   => (is => 'ro', isa => 'Int',                                     required => 1);
@@ -49,19 +62,21 @@ sub _build_conf {
 sub _build_slot {
   my ($self) = @_;
 
-  my $class = 'CSG::Storage::SlotFS::' . ucfirst(lc($self->project));
-  my $slot  = undef;
+  my $project = ucfirst(lc($self->project));
+  my $class   = "CSG::Storage::SlotFS::$project";
+  my $slot    = undef;
 
   try {
     load $class;
 
+    # XXX - this is not right
     $slot = $class->find(
       name   => $self->sample_id,
       prefix => $self->prefix,
     );
   }
   catch {
-    CSG::Mapper::Sample::Exceptions::Sample::SlotFailed->throw($_);
+    CSG::Mapper::Exceptions::Sample::SlotFailed->throw($_);
   };
 
   return $slot;
@@ -107,11 +122,11 @@ sub _build_incoming_path {
 
   if ($self->has_slot) {
     $bam  = File::Spec->join($self->slot->incoming_path, $self->filename);
-    $cram = File::Spec->join($self->slot->incoming_path,  $self->sample_id . '.src.cram');
+    $cram = File::Spec->join($self->slot->incoming_path, $self->sample_id . '.src.cram');
   } else {
     my $incoming_dir = $self->_conf->get($self->project, 'incoming_dir');
     my $backup_dir   = $self->_conf->get($self->project, 'backup_dir');
-    my $base_dir     = File::Spec->join($self->prefix, $self->host);
+    my $base_dir = File::Spec->join($self->prefix, $self->host);
 
     # Original BAM path:
     # /<prefix>/<host>/<project_incoming_dir>/<center>/<run_dir>/<filename>
@@ -166,7 +181,7 @@ sub _build_state_dir {
   return $self->slot->run_path if $self->has_slot;
 
   my $workdir = $self->_conf->get($self->project, 'workdir');
-  my $run_dir = $config->get($project, 'run_dir');
+  my $run_dir = $self->_conf->get($self->project, 'run_dir');
 
   return File::Spec->join($self->prefix, $workdir, $run_dir, $self->build_str);
 }

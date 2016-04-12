@@ -1,2 +1,2 @@
-export SLOTS_CONF=$(pwd)/../slots.ini
-export CSG_MAPPING_CONF=$(pwd)/../mapper.ini
+export SLOTS_CONF=$(pwd)/../configs/slots.ini
+export CSG_MAPPING_CONF=$(pwd)/../configs/mapper.ini

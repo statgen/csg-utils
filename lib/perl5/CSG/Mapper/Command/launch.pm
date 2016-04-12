@@ -207,7 +207,7 @@ sub execute {
       $logger->debug('created basedir') if $debug;
     }
 
-    my $log_dir = $sample_obj->log_dir
+    my $log_dir = $sample_obj->log_dir;
     $logger->debug("log_dir: $log_dir") if $debug;
     unless (-e $log_dir) {
       make_path($log_dir);

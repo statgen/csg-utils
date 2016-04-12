@@ -1,7 +1,6 @@
 package CSG::Mapper::Command::monitor;
 
 use CSG::Mapper -command;
-use CSG::Base;
 use CSG::Base qw(file templates);
 use CSG::Constants qw(:basic :mapping);
 use CSG::Mapper::Config;
