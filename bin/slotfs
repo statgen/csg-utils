@@ -1,8 +1,7 @@
 #!/usr/bin/env perl
 
 use FindBin qw($Bin);
-use local::lib qq($Bin/../local);
-use lib qq($Bin/../lib/perl5);
+use lib (qq($Bin/../local/lib/perl5), qq($Bin/../lib/perl5));
 
 use CSG::Storage::SlotFS;
 

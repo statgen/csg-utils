@@ -1,4 +1,3 @@
-requires 'local::lib';
 requires 'Modern::Perl';
 requires 'Readonly';
 requires 'Try::Tiny';
