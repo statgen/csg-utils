@@ -6,7 +6,7 @@ use Moose::Role;
 use Modern::Perl;
 use IPC::System::Simple qw(capture);
 
-use CSG::Storage::Types;
+use CSG::Types;
 
 has 'filename' => (
   is        => 'rw',

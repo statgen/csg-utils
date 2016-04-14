@@ -1,3 +1,4 @@
+## no tidy
 package CSG::Types;
 
 use CSG::Base;
@@ -33,6 +34,21 @@ subtype 'ValidSlotFSProject',
   as 'Object',
   where {ref $_ =~ /^CSG::Storage::SlotFS/},
   message {'is not a valid slotfs project'};
+
+subtype 'ValidPrefixPath',
+  as 'Str',
+  where { -e $_ },
+  message { "Prefix path, $_, does not exist" };
+
+subtype 'ValidFile',
+  as 'Str',
+  where { -e $_ },
+  message { "File, $_, does not exist" };
+
+subtype 'ValidSlotSize',
+  as 'Int',
+  where { $_ =~ /^\d+$/ and $_ >= 0 },
+  message {"Slot size, $_, is not valid"};
 
 no Moose::Util::TypeConstraints;
 

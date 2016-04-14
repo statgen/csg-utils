@@ -7,7 +7,7 @@ use Modern::Perl;
 use File::Spec;
 
 use CSG::Storage::Slots;
-use CSG::Storage::Types;
+use CSG::Types;
 
 requires qw(size to_string project);
 

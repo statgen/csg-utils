@@ -5,7 +5,7 @@ use Modern::Perl;
 use Config::Tiny;
 use Moose;
 
-use CSG::Storage::Types;
+use CSG::Types;
 
 has '_file'    => (is => 'ro', isa => 'ValidFile',    lazy => 1, builder => '_build_conf_file');
 has '_content' => (is => 'ro', isa => 'Config::Tiny', lazy => 1, builder => '_build_content');

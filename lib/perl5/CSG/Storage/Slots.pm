@@ -2,15 +2,24 @@ package CSG::Storage::Slots;
 
 use Modern::Perl;
 use Moose;
+use Moose::Util::TypeConstraints;
 use File::Spec;
 use Digest::SHA qw(sha1_hex);
 use overload '""' => sub {shift->to_string};
 
 use CSG::Storage::Slots::DB;
 use CSG::Storage::Slots::Exceptions;
-use CSG::Storage::Slots::Types;
+use CSG::Types;
 
 our $VERSION = "0.1";
+
+subtype 'ValidProject',
+  as 'Str',
+  where {
+    my $schema = CSG::Storage::Slots::DB->new();
+    defined $schema->resultset('Project')->find({name => $_});
+  },
+  message {"Project name, $_, is not a valid project"};
 
 has 'name'    => (is => 'ro', isa => 'Str',           required => 1);
 has 'project' => (is => 'ro', isa => 'ValidProject',  required => 1);
