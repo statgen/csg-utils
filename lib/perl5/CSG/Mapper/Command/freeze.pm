@@ -77,4 +77,4 @@ __END__
 
 =head1
 
-CSG::Mapper::Command::freeze - cancel a remapping job
+CSG::Mapper::Command::freeze - Generate a data freeze csv file
