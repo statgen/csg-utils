@@ -139,6 +139,16 @@ sub execute {
         $logger->error($_->description);
         $logger->debug('bam_path: ' . $_->bam_path) if $debug;
         $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+      } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
+        $logger->error($_->error);
+      } else {
+        if ($_->isa('Exception::Class')) {
+          chomp(my $error = $_->error);
+          $logger->critical($error);
+        } else {
+          $logger->critical('something went sideways');
+          print STDERR Dumper $_ if $debug;
+        }
       }
     }
     finally {
@@ -267,7 +277,7 @@ sub execute {
           delay           => $delay,
           threads         => $procs,
           meta_id         => $job_meta->id,
-          mapper_cmd      => $PROGRAM_NAME,
+          mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
           cluster         => $cluster,
           project         => $project,
         },
