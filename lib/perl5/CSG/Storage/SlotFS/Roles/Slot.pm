@@ -55,11 +55,13 @@ sub _build_path {
 }
 
 sub find {
-  my ($self) = @_;
+  my ($self, %params) = @_;
 
-  my $slot = CSG::Storage::Slots->find(
-    name    => $self->name,
-    project => $self->project,
+  return unless exists $params{name} and exists $params{project};
+
+  return CSG::Storage::Slots->find(
+    name    => $params{name},
+    project => $params{project},
   );
 }
 
