@@ -15,7 +15,7 @@ subtype 'ValidProject',
 
 subtype 'ValidSlotSize',
   as 'Int',
-  where { $_ =~ /^\d+$/ and $_ > 0 },
+  where { $_ =~ /^\d+$/ and $_ >= 0 },
   message {"Slot size, $_, is not valid"};
 
 subtype 'ValidSlotName',

@@ -12,15 +12,21 @@ our $VERSION = '0.1';
 Readonly::Scalar my $PROJECT => 'topmed';
 Readonly::Array my @PATHS    => (qw(incoming results logs run info));
 
-has 'size'    => (is => 'ro', isa => 'Int', lazy => 1, builder => '_build_size');
-has 'factor'  => (is => 'ro', isa => 'Int', default => sub {4});
-has 'project' => (is => 'ro', isa => 'Str', default => sub {$PROJECT});
+has 'size' => (
+  is      => 'rw',
+  isa     => 'Int',
+  default => sub {
+    return 0;
+  },
+);
 
-sub _build_size {
-  my ($self) = @_;
-  return 0 unless $self->has_filename;
-  return (stat($self->filename))[7] * $self->factor;
-}
+has 'project' => (
+  is      => 'ro',
+  isa     => 'Str',
+  default => sub {
+    return $PROJECT;
+  },
+);
 
 for my $path (@PATHS) {
   has "${path}_path" => (

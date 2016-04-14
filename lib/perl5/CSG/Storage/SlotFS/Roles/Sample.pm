@@ -8,8 +8,18 @@ use IPC::System::Simple qw(capture);
 
 use CSG::Storage::Types;
 
-has 'filename'  => (is => 'rw', isa => 'Maybe[ValidFile]', predicate => 'has_filename');
-has 'sample_id' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_sample_id');
+has 'filename' => (
+  is        => 'rw',
+  isa       => 'Maybe[ValidFile]',
+  predicate => 'has_filename'
+);
+
+has 'sample_id' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_sample_id'
+);
 
 sub _build_sample_id {
   my ($self) = @_;

@@ -20,7 +20,6 @@ sub startup : Test(startup => 2) {
 
   for my $fixture (@{$fixtures}) {
     my $sample = $self->class->new(
-      filename => File::Spec->join($self->fixture_path, 'samples', $fixture->{filename}),
       name     => $fixture->{sample_id},
       project  => $fixture->{project},
       prefix   => $fixture->{prefix},
