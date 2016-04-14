@@ -26,6 +26,8 @@ sub prefix {
 sub _startup : Test(startup) {
   my ($self) = @_;
 
+  $ENV{SLOTS_DB} = 'slots_dev';
+
   my $config = CSG::Storage::Config->new();
   my $schema = CSG::Storage::Slots::DB->new();
 

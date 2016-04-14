@@ -5,15 +5,16 @@ use CSG::Storage::SlotFS -command;
 use Modern::Perl;
 use Module::Load;
 use Try::Tiny;
+use Number::Bytes::Human qw(parse_bytes);
 
 use CSG::Logger;
 
 sub opt_spec {
   return (
-    ['project|p=s',  'Project name the slot belongs to',  {required => 1}],
-    ['name|n=s',     'Name of the slot to initialize',    {required => 1}],
-    ['filename|f=s', 'Full path to sample (bam or cram)', {required => 1}],
-    ['prefix|=s',    'Optional path prefix (i.e. /tmp)'],
+    ['project|p=s', 'Project name the slot belongs to',                                         {required => 1}],
+    ['name|n=s',    'Name of the slot to initialize',                                           {required => 1}],
+    ['size|s=s',    'Size of the initial sample directory in human readable form (i.e. 400GB)', {required => 1}],
+    ['prefix|=s',   'Optional path prefix (e.g. /tmp)'],
   );
 }
 
@@ -37,8 +38,8 @@ sub execute {
     load $class;
 
     my %params = (
-      name     => $opts->{name},
-      filename => $opts->{filename},
+      name => $opts->{name},
+      size => parse_bytes($opts->{size}),
     );
 
     if ($opts->{prefix}) {
