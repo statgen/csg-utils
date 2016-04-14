@@ -14,7 +14,7 @@ has '_conf' => (
   is      => 'ro',
   isa     => 'CSG::Mapper::Config',
   lazy    => 1,
-  builder => '_build_conf'
+  builder => '_build_conf',
 );
 
 has 'slot' => (
@@ -22,27 +22,125 @@ has 'slot' => (
   isa       => 'Maybe[ValidSlotFSProject]',
   lazy      => 1,
   builder   => '_build_slot',
-  predicate => 'has_slot'
+  predicate => 'has_slot',
 );
 
-has 'cluster' => (is => 'ro', isa => 'ValidCluster',                            required => 1);
-has 'build'   => (is => 'ro', isa => 'Int',                                     required => 1);
-has 'record'  => (is => 'ro', isa => 'CSG::Mapper::DB::Schema::Result::Sample', required => 1);
+has 'cluster' => (
+  is       => 'ro',
+  isa      => 'ValidCluster',
+  required => 1,
+);
 
-has 'prefix'        => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_prefix');
-has 'project'       => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_project');
-has 'host'          => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_host');
-has 'center'        => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_center');
-has 'pi'            => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_pi');
-has 'run_dir'       => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_run_dir');
-has 'filename'      => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_filename');
-has 'sample_id'     => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_sample_id');
-has 'incoming_path' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_incoming_path', predicate => 'has_incoming_path');
-has 'result_path'   => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_result_path');
-has 'build_str'     => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_build_str');
-has 'log_dir'       => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_log_dir');
-has 'cram'          => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_cram');
-has 'crai'          => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_crai');
+has 'build' => (
+  is       => 'ro',
+  isa      => 'Int',
+  required => 1,
+);
+
+has 'record' => (
+  is       => 'ro',
+  isa      => 'CSG::Mapper::DB::Schema::Result::Sample',
+  required => 1,
+);
+
+has 'prefix' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_prefix',
+);
+
+has 'project' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_project',
+);
+
+has 'host' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_host',
+);
+
+has 'center' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_center',
+);
+
+has 'pi' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_pi',
+);
+
+has 'run_dir' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_run_dir',
+);
+
+has 'filename' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_filename',
+);
+
+has 'sample_id' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_sample_id',
+);
+
+has 'incoming_path' => (
+  is        => 'ro',
+  isa       => 'Str',
+  lazy      => 1,
+  builder   => '_build_incoming_path',
+  predicate => 'has_incoming_path',
+);
+
+has 'result_path' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_result_path',
+);
+
+has 'build_str' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_build_str',
+);
+
+has 'log_dir' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_log_dir',
+);
+
+has 'cram' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_cram',
+);
+
+has 'crai' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_crai',
+);
 
 has 'state_dir' => (
   is      => 'ro',
