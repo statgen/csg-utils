@@ -122,7 +122,7 @@ $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
 
 if [ "$rc" -eq 0 ]; then
-  [% IF settings.pipeline == 'cleanUpBam2fastq' -%]
+[% IF settings.pipeline == 'cleanUpBam2fastq' -%]
   if [ "$rc" -eq 0 ]; then
     $MAPPER_LOG_CMD --message "puring temporary fastq files from [% settings.pipeline %]"
     rm -rf ${TMP_DIR}/fastqs/tmp.cleanUpBam
@@ -134,7 +134,7 @@ if [ "$rc" -eq 0 ]; then
       exit 1
     fi
   fi
-  [% END -%]
+[% END -%]
 
   [% gotcloud.cmd %] align \
     --gcroot       [% gotcloud.root %] \
