@@ -23,6 +23,7 @@ has 'slot' => (
   lazy      => 1,
   builder   => '_build_slot',
   predicate => 'has_slot',
+  clearer   => 'clear_slot',
 );
 
 has 'cluster' => (
@@ -153,6 +154,14 @@ before [qw(incoming_path result_path)] => sub {
   shift->slot;
 };
 
+after 'slot' => sub {
+  my ($self) = @_;
+
+  unless (defined $self->{slot}) {
+    $self->clear_slot;
+  }
+};
+
 sub _build_conf {
   return CSG::Mapper::Config->new(project => 'topmed');
 }
@@ -174,7 +183,7 @@ sub _build_slot {
     );
   }
   catch {
-    CSG::Mapper::Exceptions::Sample::SlotFailed->throw($_);
+    CSG::Mapper::Exceptions::Sample::SlotFailed->throw(error => $_);
   };
 
   return $slot;
