@@ -253,7 +253,7 @@ sub _build_incoming_path {
 sub _build_result_path {
   my ($self) = @_;
 
-  return File::Spec->join($self->slot->mapping_path, $self->build_str) if $self->has_slot;
+  return File::Spec->join($self->slot->results_path, $self->build_str) if $self->has_slot;
 
   my $results_dir = $self->_conf->get($self->project, 'results_dir');
   return File::Spec->join($self->prefix, $self->host, $results_dir, $self->center, $self->pi, $self->build_str, $self->sample_id);
