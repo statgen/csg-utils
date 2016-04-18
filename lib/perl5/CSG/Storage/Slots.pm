@@ -2,7 +2,6 @@ package CSG::Storage::Slots;
 
 use Modern::Perl;
 use Moose;
-use Moose::Util::TypeConstraints;
 use File::Spec;
 use Digest::SHA qw(sha1_hex);
 use overload '""' => sub {shift->to_string};
@@ -13,16 +12,6 @@ use CSG::Types;
 
 our $VERSION = "0.1";
 
-## no tidy
-subtype 'ValidProject',
-  as 'Str',
-  where {
-    my $schema = CSG::Storage::Slots::DB->new();
-    defined $schema->resultset('Project')->find({name => $_});
-  },
-  message { "Project name, $_, is not a valid project" };
-## use tidy
-
 has 'name' => (
   is       => 'ro',
   isa      => 'Str',
@@ -31,8 +20,9 @@ has 'name' => (
 
 has 'project' => (
   is       => 'ro',
-  isa      => 'ValidProject',
-  required => 1
+  isa      => 'Str',
+  required => 1,
+  trigger  => \&_set_project
 );
 
 has 'size' => (
@@ -42,13 +32,6 @@ has 'size' => (
   trigger  => \&_set_size
 );
 
-has 'sha1' => (
-  is      => 'ro',
-  isa     => 'Str',
-  lazy    => 1,
-  builder => '_build_sha1'
-);
-
 has 'path' => (
   is      => 'ro',
   isa     => 'Str',
@@ -56,10 +39,24 @@ has 'path' => (
   builder => '_build_path'
 );
 
+has 'exclude' => (
+  is      => 'ro',
+  isa     => 'Maybe[Int]',
+  default => sub {
+    return undef;
+  },
+);
+
 has '_record' => (
   is        => 'rw',
   isa       => __PACKAGE__ . '::DB::Schema::Result::Slot',
-  predicate => 'has_record'
+  predicate => 'has_record',
+  handles   => [
+    qw(
+      sha1
+      pool_id
+      )
+  ],
 );
 
 around [qw(name project size path sha1)] => sub {
@@ -67,9 +64,17 @@ around [qw(name project size path sha1)] => sub {
   my $self = shift;
 
   unless ($self->has_record) {
-    my $schema  = CSG::Storage::Slots::DB->new();
+    my $schema = CSG::Storage::Slots::DB->new();
+
     my $project = $schema->resultset('Project')->find({name => $self->{project}});
-    my $pool    = $project->next_available_pool($self->{size});
+    unless ($project) {
+      CSG::Storage::Slots::Exceptions::Project::DoesNotExist->throw();
+    }
+
+    my $pool = $project->next_available_pool(
+      size    => $self->{size},
+      exclude => $self->exclude,
+    );
 
     unless ($pool) {
       CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable->throw();
@@ -98,8 +103,14 @@ sub _set_size {
   }
 }
 
-sub _build_sha1 {
-  return shift->_record->sha1;
+sub _set_project {
+  my ($self, $new, $old) = @_;
+
+  my $schema = CSG::Storage::Slots::DB->new();
+
+  unless ($schema->resultset('Project')->find({name => $new})) {
+    CSG::Storage::Slots::Exceptions::Project::DoesNotExist->throw();
+  }
 }
 
 sub _build_path {
@@ -137,62 +148,3 @@ no Moose;
 __PACKAGE__->meta->make_immutable;
 
 1;
-
-__END__
-
-=head1 NAME
-
- CSG::Storage::Slots
-
-=head1 VERSION
-
-This documentation refers to CSG::Storage::Slots version 0.1
-
-=head1 SYNOPSIS
-
-    use CSG::Storage::Slots;
-
-    my $slot = CSG::Storage::Slots->new(name => 'foo', project => 'bar', size => '2000000000');
-
-    say $slot->path;
-
-=head1 DESCRIPTION
-
-
-
-=head1 DIAGNOSTICS
-
-
-
-=head1 CONFIGURATION AND ENVIRONMENT
-
-
-
-=head1 DEPENDENCIES
-
-
-
-=head1 INCOMPATIBILITIES
-
-
-
-=head1 BUGS AND LIMITATIONS
-
-There are no known bugs in this module.
-Please report problems to Chris Scheller <schelcj@umich.edu>
-Patches are welcome.
-
-=head1 AUTHOR
-
-Chris Scheller <schelcj@umich.edu>
-
-=head1 LICENSE AND COPYRIGHT
-
-Copyright (c) 2016 Regents of the University of Michigan. All rights reserved.
-
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

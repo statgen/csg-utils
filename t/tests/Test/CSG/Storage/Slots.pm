@@ -25,13 +25,13 @@ sub test_new : Test(6) {
   lives_ok {$self->class->new(name => 'foobar', project => 'proj1', size => parse_bytes('100TB'))} 'all params given for new()';
 
   throws_ok {$self->class->new(name => 'foo', project => 'foo', size => parse_bytes('100TB'))}
-  'Moose::Exception::ValidationFailedForInlineTypeConstraint', 'invalid project name';
+  'CSG::Storage::Slots::Exceptions::Project::DoesNotExist', 'invalid project name';
 
   throws_ok {
     my $slot = $self->class->new(name => 'baz', project => 'proj1', size => parse_bytes('500TB'));
     $slot->size;
   }
-  'CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable', 'not enough space in exisint pools';
+  'CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable', 'not enough space in exising pools';
 }
 
 sub test_path : Test(2) {

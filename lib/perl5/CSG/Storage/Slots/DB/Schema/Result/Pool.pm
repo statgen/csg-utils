@@ -250,5 +250,4 @@ sub is_available {
   return 1;
 }
 
-
 1;

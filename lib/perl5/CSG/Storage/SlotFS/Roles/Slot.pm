@@ -39,6 +39,14 @@ has 'slot' => (
   builder => '_build_slot',
 );
 
+has 'exclude' => (
+  is  => 'ro',
+  isa => 'Maybe[Int]',
+  default => sub {
+    return undef;
+  },
+);
+
 sub _build_slot {
   my ($self) = @_;
 
@@ -46,6 +54,7 @@ sub _build_slot {
     name    => $self->name,
     size    => $self->size,
     project => $self->project,
+    exclude => $self->exclude,
   );
 }
 
