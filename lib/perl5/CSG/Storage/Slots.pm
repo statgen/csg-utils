@@ -13,22 +13,54 @@ use CSG::Types;
 
 our $VERSION = "0.1";
 
+## no tidy
 subtype 'ValidProject',
   as 'Str',
   where {
     my $schema = CSG::Storage::Slots::DB->new();
     defined $schema->resultset('Project')->find({name => $_});
   },
-  message {"Project name, $_, is not a valid project"};
+  message { "Project name, $_, is not a valid project" };
+## use tidy
 
-has 'name'    => (is => 'ro', isa => 'Str',           required => 1);
-has 'project' => (is => 'ro', isa => 'ValidProject',  required => 1);
-has 'size'    => (is => 'rw', isa => 'ValidSlotSize', required => 1, trigger => \&_set_size);
+has 'name' => (
+  is       => 'ro',
+  isa      => 'Str',
+  required => 1
+);
 
-has 'sha1' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_sha1');
-has 'path' => (is => 'ro', isa => 'Str', lazy => 1, builder => '_build_path');
+has 'project' => (
+  is       => 'ro',
+  isa      => 'ValidProject',
+  required => 1
+);
 
-has '_record' => (is => 'rw', isa => __PACKAGE__ . '::DB::Schema::Result::Slot', predicate => 'has_record');
+has 'size' => (
+  is       => 'rw',
+  isa      => 'ValidSlotSize',
+  required => 1,
+  trigger  => \&_set_size
+);
+
+has 'sha1' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_sha1'
+);
+
+has 'path' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_path'
+);
+
+has '_record' => (
+  is        => 'rw',
+  isa       => __PACKAGE__ . '::DB::Schema::Result::Slot',
+  predicate => 'has_record'
+);
 
 around [qw(name project size path sha1)] => sub {
   my $orig = shift;
@@ -43,7 +75,7 @@ around [qw(name project size path sha1)] => sub {
       CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable->throw();
     }
 
-    my $record  = $schema->resultset('Slot')->find_or_create(
+    my $record = $schema->resultset('Slot')->find_or_create(
       {
         name    => $self->{name},
         size    => $self->{size},
