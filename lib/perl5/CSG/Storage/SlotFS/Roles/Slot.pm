@@ -8,6 +8,7 @@ use File::Spec;
 
 use CSG::Storage::Slots;
 use CSG::Types;
+use CSG::Base qw(file);
 
 requires qw(size to_string project);
 
@@ -46,6 +47,16 @@ has 'exclude' => (
     return undef;
   },
 );
+
+around 'path' => sub {
+  my ($orig, $self) = @_;
+
+  unless (-e $self->$orig) {
+    make_path($self->$orig);
+  }
+
+  return $self->$orig;
+};
 
 sub _build_slot {
   my ($self) = @_;

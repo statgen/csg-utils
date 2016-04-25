@@ -163,7 +163,8 @@ use Number::Bytes::Human qw(format_bytes);
 
 sub to_string {
   my ($self) = @_;
-  return sprintf 'Name: %-10s Project: %-10s Pool: %-10s Size: %s',
+  return sprintf 'Id: %-5d Name: %-10s Project: %-10s Pool: %-10s Size: %s',
+    $self->id,
     $self->name,
     $self->pool->project->name,
     $self->pool->name,

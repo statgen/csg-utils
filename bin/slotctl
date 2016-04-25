@@ -5,5 +5,5 @@ use lib (qq($Bin/../local/lib/perl5), qq($Bin/../lib/perl5));
 
 use CSG::Storage::SlotCtl;
 
-$ARGV[0] =~ s/^(add|list)-/\1_/g;
+$ARGV[0] =~ s/^(add|list|update)-/\1_/g;
 CSG::Storage::SlotCtl->run;

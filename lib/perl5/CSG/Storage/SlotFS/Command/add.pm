@@ -1,20 +1,25 @@
 package CSG::Storage::SlotFS::Command::add;
 
 use CSG::Storage::SlotFS -command;
+use CSG::Logger;
+use CSG::Base;
+
+use Module::Load;
+use Number::Bytes::Human qw(parse_bytes);
 
 sub opt_spec {
   return (
     ['project|p=s', 'Project name the slot belongs to',                                         {required => 1}],
     ['name|n=s',    'Name of the slot to initialize',                                           {required => 1}],
     ['size|s=s',    'Size of the initial sample directory in human readable form (i.e. 400GB)', {required => 1}],
-    ['prefix|=s',   'Optional path prefix (e.g. /tmp)'],
+    ['prefix=s',    'Optional path prefix (e.g. /tmp)',                                         {default  => '/net'}],
   );
 }
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
 
-  if ($opts->{prefix} and not -e $opts->{prefix}) {
+  unless (-e $opts->{prefix}) {
     $self->usage_error('Prefix must exist');
   }
 }
@@ -24,30 +29,37 @@ sub execute {
 
   my $rc     = 0;
   my $logger = CSG::Logger->new();
-  my $class  = 'CSG::Storage::SlotFS::' . ucfirst(lc($opts->{project}));
-  my $slot   = undef;
 
   try {
+    my $class = 'CSG::Storage::SlotFS::' . ucfirst(lc($opts->{project}));
+
     load $class;
 
     (my $name = $opts->{name}) =~ s/^([^-]+)\-.*$/$1/g;
 
-    my %params = (
-      name => $name,
-      size => parse_bytes($opts->{size}),
+    my $slot = $class->find(
+      name    => $name,
+      project => $opts->{project},
+      prefix  => $opts->{prefix},
     );
 
-    $slot = $class->find(%params);
     unless ($slot) {
       CSG::Storage::Slots::Exceptions::Slot::DoesNotExist->throw();
     }
 
-    $params{exclude} = $slot->pool_id;
-    $class->new(%params);
+    my $new_slot = $class->new(
+      name    => $opts->{name},
+      size    => parse_bytes($opts->{size}),
+      exclude => $slot->pool_id,
+      project => $opts->{project},
+      prefix  => $opts->{prefix},
+    );
+
+    $logger->info($new_slot->to_string);
   }
   catch {
     if (not ref $_) {
-      $logger->error('Unknown error occured');
+      $logger->error($_);
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Sample::FailedSkeletonDirectory')) {
       $logger->error($_->description);
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::DoesNotExist')) {
@@ -61,11 +73,6 @@ sub execute {
     }
 
     $rc = 1;
-  }
-  finally {
-    unless (@_) {
-      $logger->info($slot->to_string);
-    }
   };
 
   exit $rc;
