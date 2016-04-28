@@ -19,3 +19,5 @@ env:
 branches:
   only:
     - master
+notifications:
+  slack: um-csg:YLfnXQ2sPWMxMRpA15iRNs34
