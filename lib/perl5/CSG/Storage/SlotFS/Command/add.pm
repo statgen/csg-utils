@@ -56,6 +56,7 @@ sub execute {
     );
 
     $logger->info($new_slot->to_string);
+    $new_slot->save_manifest;
   }
   catch {
     if (not ref $_) {

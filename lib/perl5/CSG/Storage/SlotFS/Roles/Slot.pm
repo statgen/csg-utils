@@ -41,8 +41,8 @@ has 'slot' => (
 );
 
 has 'exclude' => (
-  is  => 'ro',
-  isa => 'Maybe[Int]',
+  is      => 'ro',
+  isa     => 'Maybe[Int]',
   default => sub {
     return undef;
   },
@@ -83,6 +83,33 @@ sub find {
     name    => $params{name},
     project => $params{project},
   );
+}
+
+sub manifest {
+  my ($self) = @_;
+
+  my $pool    = $self->slot->_record->pool;
+  my $type    = $pool->type;
+  my $project = $pool->project;
+
+  return {
+    name    => $self->name,
+    sha1    => $self->slot->sha1,
+    size    => $self->size,
+    pool    => {
+      id       => $pool->id,
+      name     => $pool->name,
+      hostname => $pool->hostname,
+      project  => {
+        id   => $project->id,
+        name => $project->name,
+      },
+      type => {
+        id   => $type->id,
+        name => $type->name,
+      }
+    },
+  };
 }
 
 1;

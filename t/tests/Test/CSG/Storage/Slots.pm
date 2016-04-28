@@ -1,14 +1,12 @@
 package Test::CSG::Storage::Slots;
 
 use base qw(Test::CSG::Storage::Base);
-use Test::More;
-use Test::Exception;
 
-use Modern::Perl;
+use CSG::Base qw(test);
+use CSG::Storage::Slots;
+
 use Digest::SHA qw(sha1_hex);
 use Number::Bytes::Human qw(parse_bytes);
-
-use CSG::Storage::Slots;
 
 sub class {
   return 'CSG::Storage::Slots';

@@ -1,19 +1,14 @@
 package Test::CSG::Storage::Base;
 
 use base qw(Test::Class);
-use Test::More;
 
-use Modern::Perl;
-use File::Path qw(remove_tree);
-use File::Spec;
-use File::Temp qw(tempdir);
-use YAML qw(LoadFile);
-use Number::Bytes::Human qw(parse_bytes);
-
+use CSG::Base qw(file test formats);
 use CSG::Storage::Config;
 use CSG::Storage::Slots::DB;
 
-my $PREFIX = tempdir();
+use Number::Bytes::Human qw(parse_bytes);
+
+my $PREFIX = File::Temp::tempdir();
 
 sub fixture_path {
   return qq{$FindBin::Bin/../t/fixtures};
@@ -31,10 +26,11 @@ sub _startup : Test(startup) {
   my $config = CSG::Storage::Config->new();
   my $schema = CSG::Storage::Slots::DB->new();
 
+  diag('Using prefix ' . $self->prefix);
   diag('Deploying schema to ' . $config->db);
   $schema->deploy({add_drop_table => 1});
 
-  my $pools = LoadFile(File::Spec->join($self->fixture_path, 'pools.yml'));
+  my $pools = YAML::LoadFile(File::Spec->join($self->fixture_path, 'pools.yml'));
 
   for my $pool (@{$pools}) {
     diag("Creating type: $pool->{type}");
@@ -70,7 +66,7 @@ sub _startup : Test(startup) {
 
 sub _teardown : Test(teardown) {
   my ($self) = @_;
-  diag('remove temporary directory ' . $self->prefix);
+  diag('removing temporary directory ' . $self->prefix);
   remove_tree($self->prefix);
 }
 
