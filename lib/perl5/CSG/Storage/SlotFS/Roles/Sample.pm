@@ -27,4 +27,11 @@ sub _build_sample_id {
   return capture(sprintf q{samtools view -H %s|grep '^@RG'|grep -o 'SM:\S*'|sort -u|cut -d \: -f 2}, $self->filename);
 }
 
+sub manifest {
+  my ($self) = @_;
+  return {
+    filename => $self->filename,
+  };
+}
+
 1;

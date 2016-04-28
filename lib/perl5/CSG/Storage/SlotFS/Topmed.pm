@@ -6,6 +6,7 @@ use Moose;
 use Modern::Perl;
 use Readonly;
 use File::Path qw(make_path);
+use IO::All;
 
 our $VERSION = '0.1';
 
@@ -63,10 +64,20 @@ sub to_string {
   return shift->path;
 }
 
-with qw(
-  CSG::Storage::SlotFS::Roles::Sample
-  CSG::Storage::SlotFS::Roles::Slot
-  );
+sub manifest {
+  File::Spec->join(shift->path, 'MANIFEST.yml');
+}
+
+sub save_manifest {
+  my ($self) = @_;
+
+  my $manifest = {slot => $self->slot_manifest};
+  return YAML::Dump($manifest) > io($self->manifest);
+}
+
+with
+  'CSG::Storage::SlotFS::Roles::Sample' => {-alias => {manifest => 'sample_manifest'}},
+  'CSG::Storage::SlotFS::Roles::Slot'   => {-alias => {manifest => 'slot_manifest'}};
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

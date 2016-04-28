@@ -47,4 +47,5 @@ on 'test' => sub {
   requires 'Test::More';
   requires 'Test::Most';
   requires 'Test::Exception';
+  requires 'Test::File';
 };

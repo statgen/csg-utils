@@ -47,7 +47,11 @@ sub execute {
     }
 
     $slot = $class->new(%params);
+
     $slot->initialize;
+    $slot->save_manifest;
+
+    $logger->info($slot->to_string);
   }
   catch {
     if (not ref $_) {
@@ -63,11 +67,6 @@ sub execute {
     }
 
     $rc = 1;
-  }
-  finally {
-    unless (@_) {
-      $logger->info($slot->to_string);
-    }
   };
 
   exit $rc;

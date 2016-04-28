@@ -33,6 +33,7 @@ our %IMPORT_BUNDLES = (
       File::Spec
       File::Basename
       File::Stat
+      File::Temp
       Path::Class
       ),
     'File::Path' => [qw(make_path remove_tree)],
@@ -63,6 +64,7 @@ our %IMPORT_BUNDLES = (
       Test::Most
       Test::More
       Test::Exception
+      Test::File
       )
   ],
   www => [

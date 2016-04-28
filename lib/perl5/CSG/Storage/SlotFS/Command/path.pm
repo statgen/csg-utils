@@ -43,15 +43,11 @@ sub execute {
   try {
     load $class;
     $slot = $class->new(name => $opts->{name});
+    $logger->info($slot->$path);
   }
   catch {
     say $_;
     $rc = 1;
-  }
-  finally {
-    unless (@_) {
-      $logger->info($slot->$path);
-    }
   };
 
   exit $rc;

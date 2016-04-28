@@ -3629,6 +3629,14 @@ DISTRIBUTIONS
       Try::Tiny 0.07
       strict 0
       warnings 0
+  Test-File-1.44
+    pathname: B/BD/BDFOY/Test-File-1.44.tar.gz
+    provides:
+      Test::File 1.44
+    requirements:
+      ExtUtils::MakeMaker 6.64
+      File::Spec::Functions 0
+      perl 5.008
   Test-Harness-3.36
     pathname: L/LE/LEONT/Test-Harness-3.36.tar.gz
     provides:
