@@ -2,7 +2,7 @@ package CSG::Mapper::Util;
 
 use base qw(Exporter);
 
-use CSG::Base qw(file);
+use CSG::Base qw(cmd file);
 use CSG::Constants qw(:mapping);
 
 our @EXPORT = ();
@@ -11,10 +11,18 @@ our @EXPORT_OK = (
   qw(
     parse_align_status
     parse_time
+    detect_cluster
     )
 );
 
 our %EXPORT_TAGS = (
+  all => [
+    qw(
+      parse_align_status
+      parse_time
+      detect_cluster
+    )
+  ],
   parsers => [
     qw(
       parse_align_status
@@ -65,6 +73,16 @@ sub parse_time {
   }
 
   return undef;
+}
+
+sub detect_cluster {
+  (my $distro = capture('/usr/bin/lsb_release -d')) =~ s/^Description:\s+(.*)$/$1/g;
+
+  for (keys %CLUSTER_MAP) {
+    return $CLUSTER_MAP{$_} if $distro =~ /^$_/i;
+  }
+
+  return;
 }
 
 1;
