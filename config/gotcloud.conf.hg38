@@ -55,7 +55,6 @@ KEEP_LOG = 1
 
 FASTQ_LIST = $(OUT_DIR)/fastq.list
 
-SAMTOOLS_SORT_EXE = /usr/cac/rhel6/med/samtools/1.2/bin/samtools
 BWA_RM_FASTQ = 1
 
 recab_USER_PARAMS = --maxBaseQual 44

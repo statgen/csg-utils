@@ -24,7 +24,6 @@ KEEP_LOG = 1
 
 FASTQ_LIST = $(OUT_DIR)/fastq.list
 
-SAMTOOLS_SORT_EXE = /net/wonderland/home/mktrost/otherTools/samtools-1.2/samtools-1.2/samtools
 BWA_RM_FASTQ = 1
 
 recab_USER_PARAMS = --maxBaseQual 44

@@ -231,7 +231,7 @@ sub execute {
       $logger->debug('created run_dir') if $debug;
     }
 
-    my $gotcloud_conf = File::Spec->join($project_dir, $config->get($cluster, 'gotcloud_conf') . $PERIOD . $sample_obj->build_str);
+    my $gotcloud_conf = File::Spec->join($project_dir, $config->get('gotcloud', 'gotcloud_conf') . $PERIOD . $sample_obj->build_str);
     $logger->debug("gotcloud conf: $gotcloud_conf") if $debug;
     unless (-e $gotcloud_conf) {
       croak qq{Unable to locate GOTCLOUD_CONF [$gotcloud_conf]};
