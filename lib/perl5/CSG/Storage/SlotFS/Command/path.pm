@@ -11,9 +11,9 @@ use CSG::Storage::Slots::DB;
 
 sub opt_spec {
   return (
-    ['project|p=s', 'Project the slot belongs to',                              {required => 1}],
-    ['name|n=s',    'Slot name to inspect',                                     {required => 1}],
-    ['path|t=s',    'Path within the slot to retreive (i.e. incoming, backup)', {required => 1}],
+    ['project|p=s', 'Project the slot belongs to', {required => 1}],
+    ['name|n=s',    'Slot name to inspect',        {required => 1}],
+    ['path|t=s',    'Path within the slot to retreive (i.e. incoming)'],
   );
 }
 
@@ -37,13 +37,18 @@ sub execute {
   my $rc     = 0;
   my $logger = CSG::Logger->new();
   my $class  = 'CSG::Storage::SlotFS::' . ucfirst(lc($opts->{project}));
-  my $slot   = undef;
-  my $path   = qq{$opts->{path}_path};
 
   try {
     load $class;
-    $slot = $class->new(name => $opts->{name});
-    $logger->info($slot->$path);
+
+    my $slot = $class->new(name => $opts->{name});
+
+    if ($opts->{path}) {
+      my $path = qq{$opts->{path}_path};
+      $logger->info($slot->$path);
+    } else {
+      $logger->info($slot->to_string);
+    }
   }
   catch {
     say $_;
