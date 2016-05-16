@@ -35,7 +35,7 @@ sub execute {
   my ($self, $opts, $args) = @_;
 
   my $schema  = CSG::Storage::Slots::DB->new();
-  my $type    = $schema->resultset('Type')->find({name => 'nfs'});                 # XXX - only type right now
+  my $type    = $schema->resultset('Type')->find_or_create({name => 'nfs'});
   my $project = $schema->resultset('Project')->find({name => $opts->{project}});
   my $pool    = $project->add_to_pools(
     {
