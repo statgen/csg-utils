@@ -161,15 +161,15 @@ if [ "$rc" -eq 0 ]; then
 
     READS_MAPPED=$([% gotcloud.samtools %] flagstat [% sample.cram %] | grep 'paired sequencing' | awk {'print $1'})
     flagstat_rc=$?
-    if [ $flagstat_rc -eq 0 ]; then
-      $MAPPER_LOG_CMD --message "original and remapped samples have same number of reads: $READS_MAPPED"
-    else
+    if [ $flagstat_rc -ne 0 ]; then
       $MAPPER_UPDATE_CMD --state failed --exit-code $flagstat_rc
       $MAPPER_LOG_CMD --messgae 'flagstat failed on remapped sample'
       exit $flagstat_rc
     fi
 
-    if [ $READS_ORIG -ne $READS_MAPPED ]; then
+    if [ $READS_ORIG -eq $READS_MAPPED ]; then
+      $MAPPER_LOG_CMD --message "original and remapped samples have same number of reads: $READS_MAPPED"
+    else
       $MAPPER_UPDATE_CMD --state failed
       $MAPPER_LOG_CMD --message "Reads for original, $READS_ORIG, do not match the remapped sample, $READS_MAPPED."
       rc=1
