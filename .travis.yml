@@ -21,3 +21,4 @@ branches:
     - master
 notifications:
   slack: um-csg:YLfnXQ2sPWMxMRpA15iRNs34
+  on_success: never
