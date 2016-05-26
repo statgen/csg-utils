@@ -55,7 +55,7 @@ sub execute {
   }
   catch {
     if (not ref $_) {
-      $logger->error('Unknown error occured');
+      $logger->error("Unknown error occured: $_");
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Sample::FailedSkeletonDirectory')) {
       $logger->error($_->error);
     } else {

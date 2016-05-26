@@ -7,11 +7,10 @@
 #SBATCH --gres=tmp:200
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
-#SBATCH --partition=topmed-working
+#SBATCH --partition=nomosix
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
-#SBATCH --qos=topmed-working
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -100,6 +99,13 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+READS_ORIG=$([% gotcloud.samtools %] flagstat [% sample.incoming_path %] | grep 'paired in sequencing' | awk {'print $1'})
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --mesage 'failed to get reads from flagstat' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
 $MAPPER_LOG_CMD --message 'creating bam.list'
 echo "[% sample.sample_id %] [% sample.incoming_path %]" > "${TMP_DIR}/bam.list"
 
@@ -131,7 +137,7 @@ if [ "$rc" -eq 0 ]; then
     if [ "$cleanup_rc" -ne 0 ]; then
       $MAPPER_LOG_CMD --message "failed to delete temporary fastq files from [% settings.pipeline %]"
       $MAPPER_UPDATE_CMD --state failed --exit-code $cleanup_rc
-      exit 1
+      exit $cleanup_rc
     fi
   fi
 [% END -%]
@@ -152,6 +158,23 @@ if [ "$rc" -eq 0 ]; then
   if [ "$rc" -eq 0 ]; then
     $MAPPER_UPDATE_CMD --state completed --exit-code $rc
     $MAPPER_LOG_CMD --message 'alignment completed'
+
+    READS_MAPPED=$([% gotcloud.samtools %] flagstat [% sample.cram %] | grep 'paired sequencing' | awk {'print $1'})
+    flagstat_rc=$?
+    if [ $flagstat_rc -ne 0 ]; then
+      $MAPPER_UPDATE_CMD --state failed --exit-code $flagstat_rc
+      $MAPPER_LOG_CMD --messgae 'flagstat failed on remapped sample'
+      exit $flagstat_rc
+    fi
+
+    if [ $READS_ORIG -eq $READS_MAPPED ]; then
+      $MAPPER_LOG_CMD --message "original and remapped samples have same number of reads: $READS_MAPPED"
+    else
+      $MAPPER_UPDATE_CMD --state failed
+      $MAPPER_LOG_CMD --message "Reads for original, $READS_ORIG, do not match the remapped sample, $READS_MAPPED."
+      rc=1
+    fi
+
   else
     $MAPPER_UPDATE_CMD --state failed --exit-code $rc
     $MAPPER_LOG_CMD --message "alignment failed with exit code $rc" --level critical

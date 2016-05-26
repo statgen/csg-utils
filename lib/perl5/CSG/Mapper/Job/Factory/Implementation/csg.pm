@@ -10,7 +10,7 @@ Readonly::Scalar my $PREFIX     => q{/usr/cluster/bin};
 Readonly::Scalar my $SACCT_CMD  => File::Spec->join($PREFIX, 'sacct');
 Readonly::Scalar my $SQUEUE_CMD => File::Spec->join($PREFIX, 'squeue');
 Readonly::Scalar my $SBATCH_CMD => File::Spec->join($PREFIX, 'sbatch');
-Readonly::Scalar my $SCANEL_CMD => File::Spec->join($PREFIX, 'scancel');
+Readonly::Scalar my $SCANCEL_CMD => File::Spec->join($PREFIX, 'scancel');
 
 Readonly::Scalar my $JOB_ELAPSED_TIME_FORMAT   => $SACCT_CMD . q{ -j %d -X -n -o elapsed};
 Readonly::Scalar my $JOB_STATE_CMD_FORMAT      => $SACCT_CMD . q{ -j %d -X -n -o state%%20};
@@ -28,7 +28,7 @@ Readonly::Hash my %JOB_STATES => (
 has 'job_id'            => (is => 'rw', isa => 'Int',       predicate => 'has_job_id');
 has 'job_output_regexp' => (is => 'ro', isa => 'RegexpRef', default   => sub {return $JOB_OUTPUT_REGEXP});
 has 'job_submit_cmd'    => (is => 'ro', isa => 'Str',       default   => sub {return $SBATCH_CMD});
-has 'job_submit_kill'   => (is => 'ro', isa => 'Str',       default   => sub {return $SCANCEL_CMD});
+has 'job_kill_cmd'      => (is => 'ro', isa => 'Str',       default   => sub {return $SCANCEL_CMD});
 
 sub elapsed {
   my ($self) = @_;

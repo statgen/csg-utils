@@ -1,3 +1,5 @@
+BAM_EXE = $(BIN_DIR)/../../bamUtil/bin/bam
+
 # FASTQ_LIST = /net/1000g/mktrost/testNewRef/NA12878_30x/fastq.list
 # OUT_DIR = /net/1000g/mktrost/testNewRef/NA12878_30x/output_new_dbsnp142_SS
 AS = NCBI38
@@ -66,7 +68,7 @@ recab_USER_PARAMS = --maxBaseQual 44
 BAM_LIST = $(OUT_DIR)/bam.list
 
 [bam2fastqStep]
-CMD = $(PIPE)$(BAM_EXE) bam2fastq --in $(BAM2FASTQ_INPUT) --outBase $(OUTPUT) --splitRG --gzip 2> $(OUTPUT)2fastq.log
+CMD = $(PIPE)$(BAM_EXE) bam2fastq --nThread 4 --in $(BAM2FASTQ_INPUT) --outBase $(OUTPUT) --splitRG --gzip 2> $(OUTPUT)2fastq.log
 BAM2FASTQ_INPUT = -.ubam
 PIPE = $(CRAM_VIEW) ?(BAM) |
 
