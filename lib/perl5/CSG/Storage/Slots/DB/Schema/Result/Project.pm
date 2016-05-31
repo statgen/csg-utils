@@ -138,7 +138,12 @@ sub next_available_pool {
 
   my @pools = ();
   for my $pool ($self->pools) {
-    next if defined $params{exclude} and $pool->id == $params{exclude};
+
+    if (defined $params{exclude}) {
+      my $ex_pool = $self->result_source->schema->resultset('Pool')->find($params{exclude});
+      next if $pool->hostname == $ex_pool->hostname;
+    }
+
     next unless $pool->is_available($params{size});
     push @pools, $pool;
   }
