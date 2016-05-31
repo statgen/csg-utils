@@ -11,8 +11,8 @@ sub global_opt_spec {
     ['debug|d',   'Debug output'],
     ['verbose|v', 'Verbose output'],
     ['dry-run|n', 'Dry run; show what would be done without actaully doing anything'],
-    ['cluster=s', 'Cluster environment (valid clusters: csg|flux)', {required => 1}],
-    ['project=s', 'Project settings to load',                       {required => 1}],
+    ['cluster=s', 'Cluster environment (valid clusters: csg|flux)'                  ],
+    ['project=s', 'Project settings to load'                                        ],
   );
 }
 
