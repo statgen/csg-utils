@@ -418,6 +418,18 @@ DISTRIBUTIONS
       Test::Exception 0
       Test::More 0
       ok 0
+  Contextual-Return-0.004008
+    pathname: D/DC/DCONWAY/Contextual-Return-0.004008.tar.gz
+    provides:
+      Contextual::Return 0.004008
+      Contextual::Return::Failure undef
+      Contextual::Return::Lvalue 0.004008
+      Contextual::Return::Value 0.004008
+    requirements:
+      ExtUtils::MakeMaker 0
+      Test::More 0
+      Want 0
+      version 0
   DBD-CSV-0.48
     pathname: H/HM/HMBRAND/DBD-CSV-0.48.tgz
     provides:
@@ -1761,6 +1773,14 @@ DISTRIBUTIONS
       Encode 2.10
       Exporter 5.57
       ExtUtils::MakeMaker 6.30
+  IO-Prompter-0.004014
+    pathname: D/DC/DCONWAY/IO-Prompter-0.004014.tar.gz
+    provides:
+      IO::Prompter 0.004014
+    requirements:
+      Contextual::Return 0
+      ExtUtils::MakeMaker 0
+      Test::More 0
   IO-Socket-IP-0.37
     pathname: P/PE/PEVANS/IO-Socket-IP-0.37.tar.gz
     provides:
@@ -3954,6 +3974,12 @@ DISTRIBUTIONS
       Fcntl 0
       URI 1.10
       perl 5.008001
+  Want-0.29
+    pathname: R/RO/ROBIN/Want-0.29.tar.gz
+    provides:
+      Want 0.29
+    requirements:
+      ExtUtils::MakeMaker 0
   XML-Writer-0.625
     pathname: J/JO/JOSEPHW/XML-Writer-0.625.tar.gz
     provides:

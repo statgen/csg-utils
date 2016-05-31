@@ -5,14 +5,14 @@ use base qw(DBIx::Class::ResultSet);
 sub find_slot {
   my ($self, $name, $project) = @_;
 
-  return $self->search(
+  return $self->find(
     {
       'me.name'      => $name,
       'project.name' => $project,
     }, {
       join => {pool => 'project'},
     }
-  )->first;
+  );
 }
 
 1;

@@ -11,6 +11,7 @@ requires 'App::Cmd';
 requires 'Exception::Class';
 requires 'Module::Load';
 requires 'Number::Bytes::Human';
+requires 'IO::Prompter';
 
 requires 'Moose';
 requires 'MooseX::AbstractFactory';

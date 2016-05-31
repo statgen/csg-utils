@@ -147,4 +147,9 @@ sub next_available_pool {
   return $pools[rand(@pools)];
 }
 
+sub has_slot {
+  my ($self, $name) = @_;
+  return $self->pools->search_related('slots')->search({'slots.name' => $name})->count;
+}
+
 1;
