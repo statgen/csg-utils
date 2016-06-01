@@ -11,8 +11,8 @@ use CSG::Storage::Slots::DB;
 
 sub opt_spec {
   return (
-    ['project|p=s', 'Project the slot belongs to', {required => 1}],
-    ['name|n=s',    'Slot name to inspect',        {required => 1}],
+    ['project|p=s', 'Project the slot belongs to [default: topmed]', {default  => 'topmed'}],
+    ['name|n=s',    'Slot name to inspect',                          {required => 1}],
     ['path|t=s',    'Path within the slot to retreive (i.e. incoming)'],
   );
 }

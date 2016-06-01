@@ -11,7 +11,7 @@ use Number::Bytes::Human qw(parse_bytes);
 sub opt_spec {
   return (
     ['name|n=s',    'Name for the slot',                                        {required => 1}],
-    ['project|p=s', 'Project name for slot filesystems',                        {required => 1}],
+    ['project|p=s', 'Project name for slot filesystems [default: topmed]',      {default  => 'topmed'}],
     ['size|s=s',    'Disk space required in human readable format (i.e. 400G)', {required => 1}],
   );
 }

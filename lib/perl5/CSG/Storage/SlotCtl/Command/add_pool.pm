@@ -14,7 +14,7 @@ sub opt_spec {
     ['hostname|w=s', 'Hostname that the pool resides on (for nfs based pools)',             {required => 1}],
     ['path|t=s',     'Path where slots will be stored',                                     {required => 1}],
     ['size|s=s',     'Total space available for slots in human readable form (i.e. 400TB)', {required => 1}],
-    ['project|r=s',  'Project this this pool belongs to',                                   {required => 1}],
+    ['project|r=s',  'Project this this pool belongs to [default: topmed]',                 {default  => 'topmed'}],
   );
 }
 

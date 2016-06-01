@@ -8,10 +8,12 @@ use CSG::Logger;
 use Modern::Perl;
 
 sub opt_spec {
+  ## no tidy
   return (
-    ['name|n=s',    'Slot name',    {required=>1}],
-    ['project|p=s', 'Project name', {required=>1}],
+    ['name|n=s',    'Slot name',                      {required => 1       }],
+    ['project|p=s', 'Project name [default: topmed]', {default  => 'topmed'}],
   );
+  ## use tidy
 }
 
 sub execute {

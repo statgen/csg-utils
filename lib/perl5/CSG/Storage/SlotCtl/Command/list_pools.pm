@@ -8,7 +8,7 @@ my $schema = CSG::Storage::Slots::DB->new();
 
 sub opt_spec {
   return (
-    ['project|p=s', 'List pools in a specific project'],
+    ['project|p=s', 'List pools in a specific project [default: topmed]', {default => 'topmed'}],
   );
 }
 

@@ -8,9 +8,9 @@ use Modern::Perl;
 
 sub opt_spec {
   return (
-    ['name|n=s',    'Slot name',         {required => 1}],
-    ['project|p=s', 'Project name',      {required => 1}],
-    ['size|s=s',    'New size for slot', {required => 1}],
+    ['name|n=s',    'Slot name',                      {required => 1}],
+    ['project|p=s', 'Project name [default: topmed]', {default  => 'topmed'}],
+    ['size|s=s',    'New size for slot',              {required => 1}],
   );
 }
 

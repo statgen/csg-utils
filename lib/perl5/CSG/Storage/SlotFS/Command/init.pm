@@ -11,7 +11,7 @@ use CSG::Logger;
 
 sub opt_spec {
   return (
-    ['project|p=s', 'Project name the slot belongs to',                                         {required => 1}],
+    ['project|p=s', 'Project name the slot belongs to [default: topmed]',                       {default  => 'topmed'}],
     ['name|n=s',    'Name of the slot to initialize',                                           {required => 1}],
     ['size|s=s',    'Size of the initial sample directory in human readable form (i.e. 400GB)', {required => 1}],
     ['prefix|=s',   'Optional path prefix (e.g. /tmp)'],

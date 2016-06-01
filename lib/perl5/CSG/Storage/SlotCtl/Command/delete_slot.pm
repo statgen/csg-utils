@@ -11,7 +11,7 @@ my $schema = CSG::Storage::Slots::DB->new();
 sub opt_spec {
   ## no tidy
   return (
-    ['project|p=s', 'Project slot is part of', {required => 1}],
+    ['project|p=s', 'Project slot is part of [default: topmed]', {default => 'topmed'}],
     ['name|n=s',    'Name of slot to delete',  {required => 1}],
   );
   ## use tidy
