@@ -145,7 +145,7 @@ sub next_available_pool {
   }
 
   for my $pool ($self->pools) {
-    next if $pool->hostname eq $ex_pool->hostname;
+    next if defined $ex_pool and $pool->hostname eq $ex_pool->hostname;
     next unless $pool->is_available($params{size});
     push @pools, $pool;
   }
