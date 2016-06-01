@@ -10,7 +10,7 @@ sub execute {
 
   my $schema = CSG::Storage::Slots::DB->new();
   for my $project ($schema->resultset('Project')->all()) {
-    say 'Name: ' . $project->name;
+    say 'Id: ' . $project->id . ' Name: ' . $project->name;
   }
 }
 
