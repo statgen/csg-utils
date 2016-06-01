@@ -136,14 +136,16 @@ __PACKAGE__->has_many(
 sub next_available_pool {
   my ($self, %params) = @_;
 
-  my @pools = ();
+  my @pools   = ();
+  my $ex_pool = undef;
+
+  if (defined $params{exclude}) {
+    $ex_pool = $self->result_source->schema->resultset('Pool')->find($params{exclude});
+    return unless $ex_pool;
+  }
+
   for my $pool ($self->pools) {
-
-    if (defined $params{exclude}) {
-      my $ex_pool = $self->result_source->schema->resultset('Pool')->find($params{exclude});
-      next if $pool->hostname == $ex_pool->hostname;
-    }
-
+    next if $pool->hostname eq $ex_pool->hostname;
     next unless $pool->is_available($params{size});
     push @pools, $pool;
   }
