@@ -24,7 +24,7 @@ sub execute {
   my $schema  = CSG::Mapper::DB->new();
   my $state   = $schema->resultset('State')->find({name => 'requested'});
   my $debug   = $self->app->global_options->{debug};
-  my $buid    = $self->app->global_options->{build};
+  my $build   = $self->app->global_options->{build};
 
   if ($opts->{sample_id}) {
     push @samples, $opts->{sample_id};
