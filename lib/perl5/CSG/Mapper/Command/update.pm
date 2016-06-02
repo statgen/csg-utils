@@ -7,6 +7,8 @@ use CSG::Constants qw(:mapping);
 use CSG::Mapper::DB;
 use CSG::Mapper::Logger;
 
+my $schema = CSG::Mapper::DB->new();
+
 sub opt_spec {
   return (
     ['meta-id=i',   'Job meta data db record id'],
@@ -26,16 +28,13 @@ sub validate_args {
     $self->usage_error('meta-id is required');
   }
 
-  my $schema = CSG::Mapper::DB->new();
-  my $meta   = $schema->resultset('Job')->find($opts->{meta_id});
-
+  my $meta = $schema->resultset('Job')->find($opts->{meta_id});
   unless ($meta) {
     $self->usage_error('unable to locate the job meta data record');
   }
 
   if ($opts->{state}) {
     my $state = $schema->resultset('State')->find({name => $opts->{state}});
-
     unless ($state) {
       $self->usage_error('invalid job state');
     }
@@ -53,7 +52,6 @@ sub validate_args {
 
   if ($opts->{step}) {
     my $step = $schema->resultset('Step')->find({name => $opts->{step}});
-
     unless ($step) {
       $self->usage_error('invalid job step');
     }
@@ -61,7 +59,6 @@ sub validate_args {
     $self->{stash}->{step}   = $step;
   }
 
-  $self->{stash}->{schema} = $schema;
   $self->{stash}->{meta}   = $meta;
 }
 
@@ -69,10 +66,8 @@ sub execute {
   my ($self, $opts, $args) = @_;
 
   my $meta   = $self->{stash}->{meta};
-  my $schema = $self->{stash}->{schema};
   my $state  = $self->{stash}->{state};
   my $step   = $self->{stash}->{step};
-
   my $logger = CSG::Mapper::Logger->new(job_id => $meta->id);
   my $params = {};
 

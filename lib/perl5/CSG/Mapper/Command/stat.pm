@@ -9,23 +9,14 @@ sub opt_spec {
     ['job-id=s',  'job to provide stats for'],
     ['time-left', 'calculate time remaining in hours for a given jobid'],
     ['totals',    'various counts'],
-    ['build|b=s', 'reference build'],
   );
 }
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
 
-  if ($opts->{time_left} and not $opts->{job_id} and not $self->app->global_options->{cluster}) {
-    $self->usage_error('cluster and job-id are required for the time-left stat');
-  }
-
-  if ($opts->{totals} and not $opts->{build}) {
-    $self->usage_error('build is required when viewing totals');
-  }
-
-  unless ($opts->{build} =~ /37|38/) {
-    $self->usage_error('invalid reference build');
+  if ($opts->{time_left} and not $opts->{job_id}) {
+    $self->usage_error('job-id id required for the time-left stat');
   }
 }
 
@@ -37,7 +28,7 @@ sub execute {
   }
 
   if ($opts->{totals}) {
-    $self->_totals($opts->{build});
+    $self->_totals($self->app->global_options->{build});
   }
 }
 

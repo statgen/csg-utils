@@ -7,39 +7,19 @@ use CSG::Mapper::DB;
 
 sub opt_spec {
   return (
-    ['build=s', 'reference build to verify results'],
-    ['complete', 'show completed sample results'],
+    ['complete',   'show completed sample results' ],
     ['incomplete', 'show incomplete sample results'],
   );
-}
-
-sub validate_args {
-  my ($self, $opts, $args) = @_;
-
-  unless ($opts->{build}) {
-    $self->usage_error('build is required');
-  }
-
-  unless ($opts->{build} =~ /37|38/) {
-    $self->usage_error('invalid build');
-  }
-
-  unless ($self->app->global_options->{cluster}) {
-    $self->usage_error('Cluster environment is required');
-  }
-
-  unless ($self->app->global_options->{cluster} =~ /$VALID_CLUSTER_REGEXPS/) {
-    $self->usage_error('Invalid cluster environment');
-  }
 }
 
 sub execute {
   my ($self, $opts, $args) = @_;
 
+  my $build   = $self->app->global_options->{build};
   my $schema  = CSG::Mapper::DB->new();
   my $results = $schema->resultset('Result')->search(
     {
-      'me.build'   => $opts->{build},
+      'me.build'   => $build,
       'state.name' => 'completed',
     },
     {
@@ -51,7 +31,7 @@ sub execute {
     my $sample = CSG::Mapper::Sample->new(
       cluster => $self->app->global_options->{cluster},
       record  => $result->sample,
-      build   => $opts->{build},
+      build   => $build,
     );
 
     if ($opts->{complete}) {
@@ -65,7 +45,6 @@ sub execute {
     } else {
       say $result->status_line . 'Complete: ' . ($sample->is_complete) ? 'YES' : 'NO';
     }
-
   }
 }
 

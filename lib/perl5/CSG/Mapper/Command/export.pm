@@ -5,25 +5,11 @@ use CSG::Base qw(cmd);
 use CSG::Mapper::Config;
 use CSG::Mapper::DB;
 
-sub opt_spec {
-  return (['build=s', 'Reference build used to mapping these samples'],);
-}
+my $schema = CSG::Mapper::DB->new();
+my $logger = CSG::Mapper::Logger->new();
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
-
-  my $schema = CSG::Mapper::DB->new();
-  my $logger = CSG::Mapper::Logger->new();
-
-  $self->{stash}->{schema} = $schema;
-  $self->{stash}->{logger} = $logger;
-
-  unless ($self->app->global_options->{project}) {
-    $self->usage_error('Project is required');
-  }
-
-  my $config = CSG::Mapper::Config->new(project => $self->app->global_otions->{project});
-  $self->{stash}->{config} = $config;
 
   unless ($self->can('_export_' . $self->app->global_options->{project})) {
     $self->usage_error('No export method defined for this project');
@@ -33,11 +19,12 @@ sub validate_args {
 sub execute {
   my ($self, $opts, $args) = @_;
 
+  my $config  = CSG::Mapper::Config->new(project => $self->app->global_options->{project});
   my $project = $self->app->global_options->{project};
-  my $schema  = $self->{stash}->{schema};
+  my $build   = $self->app->global_options->{build};
   my $results = $schema->resultset('Result')->search(
     {
-      'me.build'           => $opts->{build},
+      'me.build'           => $build,
       'sample.exported_at' => undef,
       'state.name'         => 'completed',
       'project.name'       => $project,
@@ -55,7 +42,6 @@ sub execute {
 sub _export_topmed {
   my ($self, $sample, $build) = @_;
 
-  my $logger = $self->{stash}->{logger};
   my $cmd = sprintf '/usr/cluster/monitor/bin/topmedcmd.pl %s mapped%d completed', $sample->sample_id, $build;
 
   $logger->debug("EXPORT CMD: '$cmd'") if $self->app->global_options->{debug};

@@ -4,22 +4,15 @@ use CSG::Mapper -command;
 use CSG::Base;
 use CSG::Mapper::DB;
 
+my $schema = CSG::Mapper::DB->new();
+
 sub opt_spec {
-  return (['job-id=s', 'job to kill based on the clusters assigned id'],);
+  return (['job-id=s', 'job to kill based on the clusters assigned id'], {required => 1});
 }
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
 
-  unless ($self->app->global_options->{cluster}) {
-    $self->usage_error('Cluster is required');
-  }
-
-  unless ($opts->{job_id}) {
-    $self->usage_error('Job ID is required');
-  }
-
-  my $schema = CSG::Mapper::DB->new();
   my $job = $schema->resultset('Job')->find({job_id => $opts->{job_id}});
   unless ($job) {
     $self->usage_error("Job ID, $opts->{job_id}, does not exist");
@@ -46,6 +39,8 @@ sub execute {
 
   try {
     $job->cancel();
+    $logger->info('cancelled job ' . $job->job_id) if $verbose;
+    $meta->cancel();
   }
   catch {
     if (not ref $_) {
@@ -62,12 +57,6 @@ sub execute {
     } elsif ($_->isa('CSG::Mapper::Exceptions::Job::CancellationFailure')) {
       $logger->error($_->description);
 
-    }
-  }
-  finally {
-    unless (@_) {
-      $logger->info('cancelled job ' . $job->job_id) if $verbose;
-      $meta->cancel();
     }
   };
 }

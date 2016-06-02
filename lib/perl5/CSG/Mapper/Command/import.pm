@@ -9,29 +9,16 @@ use CSG::Mapper::DB;
 Readonly::Array my @IMPORT_FIELDS => (qw(center run_dir filename study pi sample_id state_b37 state_b38 fullpath));
 
 sub opt_spec {
+  ## no tidy
   return (
     ['filename|f=s', 'Filename to import or - to read from stdin'],
-    ['headers', 'Import file contains a header row'],
+    ['headers',      'Import file contains a header row'         ],
   );
+  ## use tidy
 }
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
-
-  unless ($self->app->global_options->{cluster}) {
-    $self->usage_error('Cluster environment is required');
-  }
-
-  unless ($self->app->global_options->{cluster} =~ /$VALID_CLUSTER_REGEXPS/) {
-    $self->usage_error('Invalid cluster environment');
-  }
-
-  unless ($self->app->global_options->{project}) {
-    $self->usage_error('Project is required');
-  }
-
-  my $config = CSG::Mapper::Config->new(project => $self->app->global_options->{project});
-  $self->{stash}->{config} = $config;
 
   if ($opts->{filename} ne $DASH and not -e $opts->{filename}) {
     $self->usage_error('Unable to locate import filename on disk');
@@ -41,7 +28,7 @@ sub validate_args {
 sub execute {
   my ($self, $opts, $args) = @_;
 
-  my $config  = $self->{stash}->{config};
+  my $config = CSG::Mapper::Config->new(project => $self->app->global_options->{project});
   my $schema  = CSG::Mapper::DB->new();
   my $project = $self->app->global_options->{project};
   my $cluster = $self->app->global_options->{cluster};

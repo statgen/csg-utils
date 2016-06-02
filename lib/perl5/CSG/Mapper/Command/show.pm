@@ -5,13 +5,24 @@ use CSG::Base qw(formats);
 use CSG::Constants;
 use CSG::Mapper::DB;
 
+my $schema = CSG::Mapper::DB->new();
+
 sub opt_spec {
   return (
     ['info',      'display basic job info'],
     ['meta-id=i', 'job meta id'],
-    ['format=s',  'output format (yaml|txt)'],
     ['state|s=s', 'display results for a given state [submitted|requested|failed|cancelled|completed]'],
-    ['build|b=s', 'reference build to show results for'],
+    [
+      'format=s',
+      'output format (valid format: yaml|txt) [default: yaml]', {
+        default   => 'yaml',
+        callbacks => {
+          regex => sub {
+            shift =~ /yaml|txt/;
+          }
+        }
+      }
+    ]
   );
 }
 
@@ -22,27 +33,11 @@ sub validate_args {
     unless ($opts->{meta_id}) {
       $self->usage_error('meta-id is required');
     }
-
-    if ($opts->{format}) {
-      unless ($opts->{format} =~ /yaml|txt/) {
-        $self->usage_error('invalid output format');
-      }
-    }
   }
 
   if ($opts->{state}) {
-    my $schema = CSG::Mapper::DB->new();
-
     unless ($schema->resultset('State')->find({name => $opts->{state}})) {
       $self->usage_error('invalid state');
-    }
-
-    unless ($opts->{build}) {
-      $self->usage_error('build is required');
-    }
-
-    unless ($opts->{build} =~ /37|38/) {
-      $self->usage_error('invalid build');
     }
   }
 }
@@ -50,22 +45,17 @@ sub validate_args {
 sub execute {
   my ($self, $opts, $args) = @_;
 
-  my $schema = CSG::Mapper::DB->new();
-
   if ($opts->{info}) {
-    my $format = $opts->{format} // 'yaml';
-    my $meta   = $schema->resultset('Job')->find($opts->{meta_id});
-
-    return $self->_info($meta, $format);
+    my $meta = $schema->resultset('Job')->find($opts->{meta_id});
+    return $self->_info($meta, $opts->{format});
   }
 
   if ($opts->{state}) {
     my $results = $schema->resultset('Result')->search(
       {
-        'me.build'   => $opts->{build},
+        'me.build'   => $self->app->global_options->{build},
         'state.name' => $opts->{state},
-      },
-      {
+      }, {
         join => 'state',
       }
     );
