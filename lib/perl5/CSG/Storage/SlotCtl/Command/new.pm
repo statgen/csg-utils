@@ -37,6 +37,16 @@ sub execute {
   catch {
     if (not ref $_) {
       $logger->error($_);
+
+    } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::DoesNotExist')) {
+      $logger->critical($_->error);
+
+    } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Project::DoesNotExist')) {
+      $logger->critical($_->error);
+
+    } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Pool::DoesNotExist')) {
+      $logger->critical($_->error);
+
     } else {
       if ($_->isa('Exception::Class')) {
         $logger->error($_->error);

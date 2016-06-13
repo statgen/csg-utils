@@ -12,7 +12,8 @@ use overload '""' => sub {shift->to_string};
 has 'name' => (
   is       => 'ro',
   isa      => 'Str',
-  required => 1
+  required => 1,
+  trigger  => \&_set_name
 );
 
 has 'project' => (
@@ -99,6 +100,27 @@ around [qw(name project size path sha1)] => sub {
 
   return $self->$orig(@_);
 };
+
+sub _set_name {
+  my ($self, $new, $old) = @_;
+
+  # TODO - need to keep all associated slots off the same hosts
+  #
+  if ($new =~ /^([^-]+)\-.*$/) {
+    my $name = $1;
+    my $slot = $self->find(
+      name    => $name,
+      project => $self->project,
+      prefix  => $self->prefix,
+    );
+
+    unless ($slot) {
+      CSG::Storage::Slots::Exceptions::Slot::DoesNotExist->throw();
+    }
+
+    $self->exclude($slot->pool_id);
+  }
+}
 
 sub _set_size {
   my ($self, $new, $old) = @_;
