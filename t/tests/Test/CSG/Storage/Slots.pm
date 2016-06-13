@@ -39,10 +39,11 @@ sub test_path : Test(2) {
     name    => 'foobar',
     project => 'proj1',
     size    => parse_bytes('300GB'),
+    prefix  => '/tmp',
   );
 
-  like($slot->to_string, qr{^foo[1|2]\.localhost/working/slots[1|2]/8/8/4/3/foo}, 'to_string() path matches');
-  like("$slot", qr{^foo[1|2]\.localhost/working/slots[1|2]/8/8/4/3/foo}, 'stringification path matches');
+  like($slot->to_string, qr{^/tmp/foo[1|2]\.localhost/working/slots[1|2]/8/8/4/3/foo}, 'to_string() path matches');
+  like("$slot", qr{^/tmp/foo[1|2]\.localhost/working/slots[1|2]/8/8/4/3/foo}, 'stringification path matches');
 }
 
 sub test_sha1 : Test(1) {
