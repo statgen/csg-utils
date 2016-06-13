@@ -1,12 +1,13 @@
 package CSG::Storage::SlotCtl::Command::collect;
 
 use CSG::Storage::SlotCtl -command;
-use CSG::Storage::Slots::DB;
+use CSG::Base qw(file);
 use CSG::Logger;
+use CSG::Storage::Slots::DB;
 
-use Modern::Perl;
-use File::Spec;
 use Filesys::DiskUsage qw(du);
+
+my $schema = CSG::Storage::Slots::DB->new();
 
 sub opt_spec {
   return (
@@ -26,7 +27,6 @@ sub execute {
   my ($self, $opts, $args) = @_;
 
   my $prefix = $opts->{prefix} // '/net';
-  my $schema = CSG::Storage::Slots::DB->new();
   my $logger = CSG::Logger->new();
 
   for my $fs ($schema->resultset('Pool')->all()) {

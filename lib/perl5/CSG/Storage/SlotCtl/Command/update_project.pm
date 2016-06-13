@@ -1,34 +1,18 @@
 package CSG::Storage::SlotCtl::Command::update_project;
 
 use CSG::Storage::SlotCtl -command;
+use CSG::Base;
 use CSG::Storage::Slots::DB;
 
 my $schema = CSG::Storage::Slots::DB->new();
 
 sub opt_spec {
-  return (
-    ['project|p=s', 'Project to modifiy', {required => 1}],
-    ['name=s',      'New project name',   {requried => 1}]
-  );
-}
-
-sub validate_args {
-  my ($self, $opts, $args) = @_;
-
-  my $project = $schema->resultset('Project')->find({name => $opts->{project}});
-  unless ($project) {
-    $self->usage_error('Project does not exist');
-  }
-
-  if ($schema->resultset('Project')->find({name => $opts->{name}})) {
-    $self->usage_error('New project name already exists');
-  }
+  return (['name=s', 'New project name', {requried => 1}]);
 }
 
 sub execute {
   my ($self, $opts, $args) = @_;
-
-  my $project = $schema->resultset('Project')->find({name => $opts->{project}});
+  my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
   $project->update({name => $opts->{name}});
 }
 

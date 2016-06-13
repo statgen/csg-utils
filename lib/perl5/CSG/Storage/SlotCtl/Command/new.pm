@@ -1,23 +1,18 @@
 package CSG::Storage::SlotCtl::Command::new;
 
 use CSG::Storage::SlotCtl -command;
-use CSG::Storage::Slots;
+use CSG::Base qw(file);
 use CSG::Logger;
+use CSG::Storage::Slots;
 
-use Modern::Perl;
-use Try::Tiny;
 use Number::Bytes::Human qw(parse_bytes);
 
 sub opt_spec {
   return (
-    ['name|n=s',    'Name for the slot',                                        {required => 1}],
-    ['project|p=s', 'Project name for slot filesystems [default: topmed]',      {default  => 'topmed'}],
-    ['size|s=s',    'Disk space required in human readable format (i.e. 400G)', {required => 1}],
+    ['name|n=s', 'Name for the slot',                                        {required => 1}],
+    ['size|s=s', 'Disk space required in human readable format (i.e. 400G)', {required => 1}],
+    # TODO - need option to disable pool host exclusion
   );
-}
-
-sub validate_args {
-  my ($self, $opts, $args) = @_;
 }
 
 sub execute {
@@ -30,9 +25,14 @@ sub execute {
   try {
     $slot = CSG::Storage::Slots->new(
       name    => $opts->{name},
-      project => $opts->{project},
+      project => $self->app->global_options->{project},
       size    => parse_bytes($opts->{size}),
+      prefix  => $self->app->global_options->{prefix},
     );
+
+    make_path($slot->path) unless -e $slot->path;
+
+    $logger->info($slot->to_string);
   }
   catch {
     if (not ref $_) {
@@ -46,11 +46,6 @@ sub execute {
     }
 
     $rc = 1;
-  }
-  finally {
-    unless (@_) {
-      $logger->info($slot->to_string);
-    }
   };
 
   exit $rc;

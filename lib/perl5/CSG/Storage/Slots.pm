@@ -1,16 +1,13 @@
 package CSG::Storage::Slots;
 
-use Modern::Perl;
-use Moose;
-use File::Spec;
-use Digest::SHA qw(sha1_hex);
-use overload '""' => sub {shift->to_string};
-
+use CSG::Base;
 use CSG::Storage::Slots::DB;
 use CSG::Storage::Slots::Exceptions;
 use CSG::Types;
 
-our $VERSION = "0.1";
+use Moose;
+use Digest::SHA qw(sha1_hex);
+use overload '""' => sub {shift->to_string};
 
 has 'name' => (
   is       => 'ro',
@@ -57,6 +54,14 @@ has '_record' => (
       pool_id
       )
   ],
+);
+
+has 'prefix' => (
+  is      => 'ro',
+  isa     => 'ValidPrefixPath',
+  default => sub {
+    return '/net';
+  },
 );
 
 around [qw(name project size path sha1)] => sub {
@@ -116,7 +121,7 @@ sub _set_project {
 sub _build_path {
   my ($self) = @_;
   my $pool = $self->_record->pool;
-  return File::Spec->join($pool->hostname, $pool->path, (split(//, $self->sha1))[0 .. 3], $self->name);
+  return File::Spec->join($self->prefix, $pool->hostname, $pool->path, (split(//, $self->sha1))[0 .. 3], $self->name);
 }
 
 sub to_string {

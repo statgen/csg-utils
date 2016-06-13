@@ -1,19 +1,12 @@
 package CSG::Storage::SlotCtl::Command::find;
 
 use CSG::Storage::SlotCtl -command;
-
-use CSG::Storage::Slots;
+use CSG::Base;
 use CSG::Logger;
-
-use Modern::Perl;
+use CSG::Storage::Slots;
 
 sub opt_spec {
-  ## no tidy
-  return (
-    ['name|n=s',    'Slot name',                      {required => 1       }],
-    ['project|p=s', 'Project name [default: topmed]', {default  => 'topmed'}],
-  );
-  ## use tidy
+  return (['name|n=s', 'Slot name', {required => 1}]);
 }
 
 sub execute {
@@ -21,7 +14,10 @@ sub execute {
 
   my $rc     = 0;
   my $logger = CSG::Logger->new();
-  my $slot   = CSG::Storage::Slots->find(name => $opts->{name}, project => $opts->{project});
+  my $slot   = CSG::Storage::Slots->find(
+    name    => $opts->{name},
+    project => $self->app->global_options->{project}
+  );
 
   if ($slot) {
     $logger->info($slot->to_string);

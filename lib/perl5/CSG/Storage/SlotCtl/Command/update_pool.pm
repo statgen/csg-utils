@@ -1,7 +1,7 @@
 package CSG::Storage::SlotCtl::Command::update_pool;
 
 use CSG::Storage::SlotCtl -command;
-
+use CSG::Base;
 use CSG::Storage::Slots::DB;
 
 my $schema = CSG::Storage::Slots::DB->new();
@@ -32,7 +32,7 @@ sub validate_args {
 sub execute {
   my ($self, $opts, $args) = @_;
 
-  my $pool   = $schema->resultset('Pool')->find($opts->{id});
+  my $pool = $schema->resultset('Pool')->find($opts->{id});
 
   if ($opts->{size}) {
     $pool->update({size => $opts->{size}});

@@ -1,8 +1,8 @@
 package CSG::Storage::SlotCtl::Command::update_slot;
 
 use CSG::Storage::SlotCtl -command;
-use CSG::Storage::Slots::DB;
 use CSG::Base;
+use CSG::Storage::Slots::DB;
 
 use Number::Bytes::Human qw(parse_bytes);
 

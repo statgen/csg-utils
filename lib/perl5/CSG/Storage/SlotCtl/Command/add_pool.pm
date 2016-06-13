@@ -1,12 +1,10 @@
 package CSG::Storage::SlotCtl::Command::add_pool;
 
 use CSG::Storage::SlotCtl -command;
-
-use Modern::Perl;
-use File::Spec;
-use Number::Bytes::Human qw(parse_bytes);
-
+use CSG::Base qw(file);
 use CSG::Storage::Slots::DB;
+
+use Number::Bytes::Human qw(parse_bytes);
 
 sub opt_spec {
   return (
@@ -14,7 +12,6 @@ sub opt_spec {
     ['hostname|w=s', 'Hostname that the pool resides on (for nfs based pools)',             {required => 1}],
     ['path|t=s',     'Path where slots will be stored',                                     {required => 1}],
     ['size|s=s',     'Total space available for slots in human readable form (i.e. 400TB)', {required => 1}],
-    ['project|r=s',  'Project this this pool belongs to [default: topmed]',                 {default  => 'topmed'}],
   );
 }
 
@@ -22,7 +19,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   my $schema = CSG::Storage::Slots::DB->new();
-  unless ($schema->resultset('Project')->find({name => $opts->{project}})) {
+  unless ($schema->resultset('Project')->find({name => $self->app->global_options->{project}})) {
     $self->usage_error('project does not exist');
   }
 
@@ -36,7 +33,7 @@ sub execute {
 
   my $schema  = CSG::Storage::Slots::DB->new();
   my $type    = $schema->resultset('Type')->find_or_create({name => 'nfs'});
-  my $project = $schema->resultset('Project')->find({name => $opts->{project}});
+  my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
   my $pool    = $project->add_to_pools(
     {
       name       => $opts->{name},

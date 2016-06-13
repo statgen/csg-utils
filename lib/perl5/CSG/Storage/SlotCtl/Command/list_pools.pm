@@ -1,33 +1,17 @@
 package CSG::Storage::SlotCtl::Command::list_pools;
 
 use CSG::Storage::SlotCtl -command;
-use CSG::Storage::Slots::DB;
 use CSG::Base;
+use CSG::Storage::Slots::DB;
 
 my $schema = CSG::Storage::Slots::DB->new();
-
-sub opt_spec {
-  return (
-    ['project|p=s', 'List pools in a specific project [default: topmed]', {default => 'topmed'}],
-  );
-}
-
-sub validate_args {
-  my ($self, $opts, $args) = @_;
-
-  if ($opts->{project}) {
-    unless ($schema->resultset('Project')->find({name => $opts->{project}})) {
-      $self->usage_error('Unable to locate project');
-    }
-  }
-}
 
 sub execute {
   my ($self, $opts, $args) = @_;
 
   my $pools = $schema->resultset('Pool');
   if ($opts->{project}) {
-    $pools = $pools->search({'project.name' => $opts->{project}}, {join => 'project'});
+    $pools = $pools->search({'project.name' => $self->app->global_options->{project}}, {join => 'project'});
   }
 
   for my $pool ($pools->all()) {
