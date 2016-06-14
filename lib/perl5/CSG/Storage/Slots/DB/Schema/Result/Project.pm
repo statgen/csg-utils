@@ -139,6 +139,17 @@ sub next_available_pool {
   my @pools   = ();
   my $ex_pool = undef;
 
+  # TODO - if we were given a parent, we need to find all child slots and make
+  #        sure we don't use a pool on any host that has an existing child slot.
+  if ($params{parent}) {
+    # XXX - find all pools that have child slots
+    my $pools = $self->search_related('pools')->search_related('slots')->search(
+      {
+        'slots.name' => {like => {'%' . $params{parent} . '%'}}
+      }
+    );
+  }
+
   if (defined $params{exclude}) {
     $ex_pool = $self->result_source->schema->resultset('Pool')->find($params{exclude});
     return unless $ex_pool;
