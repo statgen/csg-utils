@@ -41,10 +41,16 @@ sub execute {
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::DoesNotExist')) {
       $logger->critical($_->error);
 
+    } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::Parent::DoesNotExist')) {
+      $logger->critical($_->error);
+
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Project::DoesNotExist')) {
       $logger->critical($_->error);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Pool::DoesNotExist')) {
+      $logger->critical($_->error);
+
+    } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable')) {
       $logger->critical($_->error);
 
     } else {
