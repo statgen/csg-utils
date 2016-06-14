@@ -64,4 +64,9 @@ sub test_sha1 : Test(1) {
   is($slot->sha1, sha1_hex($name), 'SHA1 should match');
 }
 
+sub test_parent : Test(no_plan) {
+  my ($self) = @_;
+  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-test', project => 'proj1', size => parse_bytes('100GB'))} 'created child slot';
+}
+
 1;

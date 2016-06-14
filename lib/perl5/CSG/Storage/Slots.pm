@@ -9,6 +9,18 @@ use Moose;
 use Digest::SHA qw(sha1_hex);
 use overload '""' => sub {shift->to_string};
 
+has '_record' => (
+  is        => 'rw',
+  isa       => __PACKAGE__ . '::DB::Schema::Result::Slot',
+  predicate => 'has_record',
+  handles   => [
+    qw(
+      sha1
+      pool_id
+      )
+  ],
+);
+
 has 'name' => (
   is       => 'ro',
   isa      => 'Str',
@@ -37,32 +49,21 @@ has 'path' => (
   builder => '_build_path'
 );
 
-has 'exclude' => (
-  is      => 'ro',
-  isa     => 'Maybe[Int]',
-  default => sub {
-    return undef;
-  },
-);
-
-has '_record' => (
-  is        => 'rw',
-  isa       => __PACKAGE__ . '::DB::Schema::Result::Slot',
-  predicate => 'has_record',
-  handles   => [
-    qw(
-      sha1
-      pool_id
-      )
-  ],
-);
-
 has 'prefix' => (
   is      => 'ro',
   isa     => 'ValidPrefixPath',
   default => sub {
     return '/net';
   },
+);
+
+has 'parent' => (
+  is        => 'rw',
+  isa       => 'Maybe[Str]',
+  predicate => 'has_parent',
+  default   => sub {
+    return undef;
+  }
 );
 
 around [qw(name project size path sha1)] => sub {
@@ -78,8 +79,8 @@ around [qw(name project size path sha1)] => sub {
     }
 
     my $pool = $project->next_available_pool(
+      parent  => $self->parent,
       size    => $self->{size},
-      exclude => $self->exclude,
     );
 
     unless ($pool) {
@@ -104,21 +105,18 @@ around [qw(name project size path sha1)] => sub {
 sub _set_name {
   my ($self, $new, $old) = @_;
 
-  # TODO - need to keep all associated slots off the same hosts
-  #
   if ($new =~ /^([^-]+)\-.*$/) {
-    my $name = $1;
+    $self->parent($1);
+
     my $slot = $self->find(
-      name    => $name,
+      name    => $self->parent,
       project => $self->project,
       prefix  => $self->prefix,
     );
 
     unless ($slot) {
-      CSG::Storage::Slots::Exceptions::Slot::DoesNotExist->throw();
+      CSG::Storage::Slots::Exceptions::Slot::Parent::DoesNotExist->throw();
     }
-
-    $self->exclude($slot->pool_id);
   }
 }
 
