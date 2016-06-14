@@ -11,7 +11,7 @@ sub execute {
 
   my $slots = $schema->resultset('Slot')->search(
     {
-      'project.name' => $opts->{project},
+      'project.name' => $self->app->global_options->{project},
     }, {
       join => {pool => 'project'}
     }

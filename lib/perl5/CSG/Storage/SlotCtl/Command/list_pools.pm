@@ -10,9 +10,7 @@ sub execute {
   my ($self, $opts, $args) = @_;
 
   my $pools = $schema->resultset('Pool');
-  if ($opts->{project}) {
-    $pools = $pools->search({'project.name' => $self->app->global_options->{project}}, {join => 'project'});
-  }
+  $pools = $pools->search({'project.name' => $self->app->global_options->{project}}, {join => 'project'});
 
   for my $pool ($pools->all()) {
     say 'Name: ' . $pool->name;
