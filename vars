@@ -1,2 +1,5 @@
+export PERL_CARTON_PATH=$(pwd)/local
+export PATH=$PERL_CARTON_PATH/bin:$(pwd)/bin:$PATH
+
 export SLOTS_CONF=$(pwd)/../configs/slots.ini
 export CSG_MAPPING_CONF=$(pwd)/../configs/mapper.ini
