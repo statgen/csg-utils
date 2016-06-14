@@ -7,6 +7,9 @@ use Exception::Class (
   __PACKAGE__ . '::Slot::DoesNotExist' => {
     description => 'unable to locate requested slot',
   },
+  __PACKAGE__ . '::Slot::Parent::DoesNotExist' => {
+    description => 'no parent slot found',
+  },
   __PACKAGE__ . '::Sample::FailedCopy' => {
     description => 'failed to copy sample to incoming directory',
     fields      => [qw(error)],
