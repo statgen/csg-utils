@@ -109,6 +109,7 @@ sub _set_name {
     $self->parent($1);
 
     my $slot = $self->find(
+      prefix  => $self->prefix,
       name    => $self->parent,
       project => $self->project,
       prefix  => $self->prefix,
@@ -157,6 +158,7 @@ sub find {
   return unless $slot;
 
   return $class->new(
+    prefix  => $params{prefix},
     name    => $slot->name,
     project => $slot->pool->project->name,
     size    => $slot->size,

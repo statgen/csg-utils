@@ -66,8 +66,11 @@ sub test_sha1 : Test(1) {
 
 sub test_parent : Test(4) {
   my ($self) = @_;
-  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931',      project => 'proj1', size => parse_bytes('100GB'))->path} 'created parent slot';
-  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-test', project => 'proj1', size => parse_bytes('100GB'))->path} 'created child slot';
+  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931',      project => 'proj1', size => parse_bytes('100GB'))->path}
+  'created parent slot';
+
+  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-test', project => 'proj1', size => parse_bytes('100GB'))->path}
+  'created child slot';
 
   throws_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-foo',  project => 'proj1', size => parse_bytes('100GB'))->path}
   'CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable', 'not enough available space';
