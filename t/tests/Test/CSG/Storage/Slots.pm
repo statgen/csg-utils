@@ -64,9 +64,16 @@ sub test_sha1 : Test(1) {
   is($slot->sha1, sha1_hex($name), 'SHA1 should match');
 }
 
-sub test_parent : Test(no_plan) {
+sub test_parent : Test(4) {
   my ($self) = @_;
-  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-test', project => 'proj1', size => parse_bytes('100GB'))} 'created child slot';
+  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931',      project => 'proj1', size => parse_bytes('100GB'))->path} 'created parent slot';
+  lives_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-test', project => 'proj1', size => parse_bytes('100GB'))->path} 'created child slot';
+
+  throws_ok {$self->class->new(prefix => $self->prefix, name => 'NA11931-foo',  project => 'proj1', size => parse_bytes('100GB'))->path}
+  'CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable', 'not enough available space';
+
+  throws_ok {$self->class->new(prefix => $self->prefix, name => 'foobar-test', project => 'proj1', size => parse_bytes('100GB'))}
+  'CSG::Storage::Slots::Exceptions::Slot::Parent::DoesNotExist', 'no parent slot found';
 }
 
 1;
