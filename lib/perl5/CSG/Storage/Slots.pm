@@ -171,6 +171,13 @@ sub find_or_create {
   return $class->find(@_) // $class->new(@_);
 }
 
+sub exists {
+  my $class  = shift;
+  my %params = @_;
+  my $schema = CSG::Storage::Slots::DB->new();
+  return defined $schema->resultset('Slot')->find_slot($params{name}, $params{project});
+}
+
 no Moose;
 __PACKAGE__->meta->make_immutable;
 

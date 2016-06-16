@@ -15,6 +15,17 @@ sub opt_spec {
   );
 }
 
+sub validate_args {
+  my ($self, $opts, $args) = @_;
+
+  my $name    = $opts->{name};
+  my $project = $self->app->global_options->{project};
+
+  if (CSG::Storage::Slots->exists(name => $name, project => $project)) {
+    $self->usage_error("Slot, $name, already exists in project, $project");
+  }
+}
+
 sub execute {
   my ($self, $opts, $args) = @_;
 
