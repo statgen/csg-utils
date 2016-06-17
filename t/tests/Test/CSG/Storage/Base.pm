@@ -18,56 +18,17 @@ sub prefix {
   return $PREFIX;
 }
 
-sub _startup : Test(startup) {
+sub _startup : Test(startup => 1) {
   my ($self) = @_;
-
-  $ENV{SLOTS_DB} //= 'slots_dev';
-
-  my $config = CSG::Storage::Config->new();
-  my $schema = CSG::Storage::Slots::DB->new();
-
   diag('Using prefix ' . $self->prefix);
-  diag('Deploying schema to ' . $config->db);
-  $schema->deploy({add_drop_table => 1});
-
-  my $pools = YAML::LoadFile(File::Spec->join($self->fixture_path, 'pools.yml'));
-
-  for my $pool (@{$pools}) {
-    diag("Creating type: $pool->{type}");
-    my $type = $schema->resultset('Type')->find_or_create({name => $pool->{type}});
-
-    diag("Creating project: $pool->{project}");
-    my $project = $schema->resultset('Project')->find_or_create({name => $pool->{project}});
-
-    diag("Creating pool: $pool->{name}");
-    my $pool = $schema->resultset('Pool')->find_or_create(
-      {
-        name       => $pool->{name},
-        hostname   => $pool->{hostname},
-        size_used  => parse_bytes($pool->{size_used}),
-        size_total => parse_bytes($pool->{size_total}),
-        path       => $pool->{path},
-        type_id    => $type->id,
-        project_id => $project->id,
-      }
-    );
-
-    for my $slot (@{$pool->{slots}}) {
-      diag("Creating slot: $slot->{name}");
-      $pool->add_to_slots(
-        {
-          name => $slot->{name},
-          size => $slot->{size},
-        }
-      );
-    }
-  }
+  ok(-e $self->prefix, 'prefix exists');
 }
 
-sub _teardown : Test(teardown) {
+sub _teardown : Test(teardown => 1) {
   my ($self) = @_;
   diag('removing temporary directory ' . $self->prefix);
   remove_tree($self->prefix);
+  ok(!-e $self->prefix, 'deleted prefix');
 }
 
 1;
