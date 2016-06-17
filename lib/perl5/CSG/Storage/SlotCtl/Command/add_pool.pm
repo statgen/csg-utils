@@ -26,6 +26,11 @@ sub validate_args {
   if ($schema->resultset('Pool')->find({name => $opts->{name}})) {
     $self->usage_error('pool already exists');
   }
+
+  my $prefix = $self->app->global_options->{prefix};
+  if ($opts->{path} =~ /^$prefix/) {
+    $self->usage_error("Prefix path, $prefix, should not be included in pool path, $opts->{path}");
+  }
 }
 
 sub execute {
