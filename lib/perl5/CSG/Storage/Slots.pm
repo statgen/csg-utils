@@ -78,6 +78,10 @@ around [qw(name project size path sha1)] => sub {
       CSG::Storage::Slots::Exceptions::Project::DoesNotExist->throw();
     }
 
+    if (__PACKAGE__->exists(name => $self->{name}, project => $self->{project})) {
+      CSG::Storage::Slots::Exceptions::SlotExists->throw();
+    }
+
     my $pool = $project->next_available_pool(
       parent  => $self->parent,
       size    => $self->{size},

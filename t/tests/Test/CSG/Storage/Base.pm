@@ -24,7 +24,7 @@ sub _startup : Test(startup => 1) {
   ok(-e $self->prefix, 'prefix exists');
 }
 
-sub _teardown : Test(teardown => 1) {
+sub _shutdown : Test(shutdown => 1) {
   my ($self) = @_;
   diag('removing temporary directory ' . $self->prefix);
   remove_tree($self->prefix);

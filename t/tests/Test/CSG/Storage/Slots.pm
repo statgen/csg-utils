@@ -125,12 +125,17 @@ sub test_parent : Test(4) {
   'CSG::Storage::Slots::Exceptions::Slot::Parent::DoesNotExist', 'no parent slot found';
 }
 
-sub test_exists : Test(2) {
+sub test_exists : Test(3) {
   my ($self) = @_;
   my $slot = $self->class->new(prefix => $self->slot_prefix, name => 'NA11931', project => 'proj1', size => parse_bytes('100GB'));
   $slot->path;
   ok($self->class->exists(name => 'NA11931', project => 'proj1'), 'Slot exists');
   ok(!$self->class->exists(name => 'jabberwocky', project => 'proj1'), 'Slot does not exist');
+
+  throws_ok {
+    my $slot = $self->class->new(prefix => $self->slot_prefix, name => 'NA11931', project => 'proj1', size => parse_bytes('100GB'));
+    $slot->path;
+  } 'CSG::Storage::Slots::Exceptions::SlotExists', 'died on duplicate slot name';
 }
 
 1;
