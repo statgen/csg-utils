@@ -121,7 +121,8 @@ $MAPPER_LOG_CMD --message 'beginning [% settings.pipeline %] pipeline'
   --conf    [% gotcloud.conf %] \
   --numjobs 1 \
   --ref_dir [% gotcloud.ref_dir %] \
-  --outdir  $TMP_DIR
+  --outdir  $TMP_DIR \
+  --verbose 1
 
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
@@ -150,7 +151,8 @@ if [ "$rc" -eq 0 ]; then
     --fastqlist    ${TMP_DIR}/fastq.list \
     --override     "TMP_DIR=$TMP_DIR" \
     --ref_dir      [% gotcloud.ref_dir %] \
-    --maxlocaljobs [% settings.threads %]
+    --maxlocaljobs [% settings.threads %] \
+    --verbose      1
 
   rc=$?
   $MAPPER_LOG_CMD --message "align_rc: $rc"
