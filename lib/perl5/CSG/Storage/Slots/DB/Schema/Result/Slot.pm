@@ -170,4 +170,16 @@ sub to_string {
     $self->pool->name,
     format_bytes($self->size);
 }
+
+sub to_hashref {
+  my ($self) = @_;
+  return {
+    id      => $self->id,
+    name    => $self->name,
+    project => $self->pool->project->name,
+    pool    => $self->pool->name,
+    size    => format_bytes($self->size),
+  };
+}
+
 1;
