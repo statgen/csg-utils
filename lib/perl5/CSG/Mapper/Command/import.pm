@@ -55,16 +55,10 @@ sub execute {
   shift @lines if $opts->{headers};
 
   for my $line (@lines) {
-    my $hostname    = $project;
-    my $incoming    = File::Spec->join($config->get($cluster, 'prefix'), $project, $config->get($project, 'incoming_dir'));
-    my $center_path = File::Spec->join($incoming, $line->center);
-
-    if (-l $center_path) {
-      my $file  = Path::Class->file(readlink($center_path));
-      my @comps = $file->components();
-
-      $hostname = $comps[4];
-    }
+    my $path     = abs_path($line->fullpath);
+    my $file     = Path::Class->file($path);
+    my @comps    = $file->components();
+    my $hostname = $comps[3] // $project;
 
     my $proj   = $schema->resultset('Project')->find_or_create({name => $project});
     my $center = $schema->resultset('Center')->find_or_create({name => $line->center});

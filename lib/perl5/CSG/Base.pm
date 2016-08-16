@@ -16,6 +16,7 @@ our @IMPORT_MODULES = (
   'English'         => [qw(-no_match_vars)],
   'List::MoreUtils' => [qw()],
   'Carp'            => [qw(croak)],
+  'Cwd'             => [qw(abs_path)],
 );
 
 our %IMPORT_BUNDLES = (
