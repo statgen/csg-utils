@@ -110,7 +110,9 @@ if [ "$rc" -eq 0 ]; then
   fi
   [% END -%]
 
+  [% IF settings.next_step == 'align' -%]
   $MAPPER_CMD launch --verbose --project [% settings.project %] --cluster [% settings.cluster %] --meta-id $META_ID --step align
+  [% END %]
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc

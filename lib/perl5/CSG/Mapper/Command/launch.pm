@@ -20,7 +20,24 @@ sub opt_spec {
     ['walltime|w=i', 'Amount of wallclock time for this job'],
     ['delay=i',      'Amount of time to delay exection in seconds'],
     ['meta-id=i',    'Job meta record for parent job'],
-    ['step=s',       'Job step to launch (valid values: bam2fastq|align|all)', {default => 'all'}],
+    ['tmp-dir=s',    'Where to write fastq files'],
+    [
+      'step=s',
+      'Job step to launch (valid values: bam2fastq|align|all)', {
+        default   => 'all',
+        callbacks => {
+          regex => sub {shift =~ /bam2fastq|align|all/},
+        }
+      }
+    ], [
+      'next-step=s',
+      'Submit alignment job if the step was bam2fastq', {
+        default   => 'none',
+        callbacks => {
+          regex => sub {shift =~ /none|align/},
+        }
+      }
+    ],
   );
 }
 
@@ -44,8 +61,8 @@ sub validate_args {
     $self->{stash}->{meta} = $meta;
   }
 
-  if ($opts->{'tmp-dir'}) {
-    unless (-e $opts->{'tmp-dir'} and -r $opts->{'tmp-dir'}) {
+  if ($opts->{'tmp_dir'}) {
+    unless (-e $opts->{'tmp_dir'} and -r $opts->{'tmp_dir'}) {
       $self->usage_error('Temporary disk space does not exist or is not writable');
     }
   }
@@ -64,9 +81,10 @@ sub execute {
   my $config = $self->{stash}->{config};
   my $step   = $self->{stash}->{step};
 
-  my $project_dir = qq{$FindBin::Bin/..};
-  my $prefix      = $config->get($cluster, 'prefix');
-  my $workdir     = $config->get($project, 'workdir');
+  my $project_dir  = qq{$FindBin::Bin/..};
+  my $prefix       = $config->get($cluster, 'prefix');
+  my $workdir      = $config->get($project, 'workdir');
+  my $base_tmp_dir = $opts->{tmp_dir} // $config->get($cluster, 'tmp_dir');
 
   ## no tidy
   my $procs = ($opts->{procs})
@@ -139,10 +157,10 @@ sub execute {
     next unless $sample_obj->has_incoming_path;
 
     my $result = $sample->results->search({build => $build})->first;
-    my $tmp_dir = File::Spec->join($config->get($cluster, 'tmp_dir'), $project, $sample_obj->build_str, $sample->sample_id);
+    my $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $sample->sample_id);
 
     if ($opts->{step} eq 'all') {
-      $tmp_dir = File::Spec->join($config->get($cluster, 'tmp_dir'), $project, $sample_obj->build_str, $opts->{step});
+      $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $opts->{step});
     }
 
     unless ($dep_job_meta) {
@@ -261,6 +279,7 @@ sub execute {
           mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
           cluster         => $cluster,
           project         => $project,
+          next_step       => $opts->{next_step},
         },
         gotcloud => {
           root     => $gotcloud_root,
