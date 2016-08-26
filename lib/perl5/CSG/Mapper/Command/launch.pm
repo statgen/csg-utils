@@ -287,6 +287,7 @@ sub execute {
           ref_dir  => $gotcloud_ref,
           cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
           samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
+          bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'), # XXX - would be better to not rely on gotcloud paths
         },
         sample => $sample_obj,
       },

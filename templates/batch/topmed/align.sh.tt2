@@ -65,7 +65,8 @@ $MAPPER_LOG_CMD --message 'begining gotcloud alignment'
   --fastqlist    ${TMP_DIR}/fastq.list \
   --override     "TMP_DIR=$TMP_DIR" \
   --ref_dir      [% gotcloud.ref_dir %] \
-  --maxlocaljobs [% settings.threads %]
+  --maxlocaljobs [% settings.threads %] \
+  --verbose      1
 
 rc=$?
 $MAPPER_LOG_CMD --message "align_rc: $rc"

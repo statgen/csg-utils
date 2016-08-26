@@ -39,7 +39,6 @@ MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
 MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
 
 TMP_DIR=[% settings.tmp_dir %]
-RUN_DIR=[% settings.run_dir %]
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
@@ -72,22 +71,18 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-$MAPPER_LOG_CMD --message 'creating bam.list'
-echo "[% sample.sample_id %] [% sample.incoming_path %]" > "${TMP_DIR}/bam.list"
-
 $MAPPER_LOG_CMD --message "delaying execution for [% settings.delay %] minutes"
 sleep "[% settings.delay %]m"
 
 $MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
 $MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 
-[% gotcloud.cmd %] pipe \
-  --gcroot  [% gotcloud.root %] \
-  --name    [% settings.pipeline %] \
-  --conf    [% gotcloud.conf %] \
-  --numjobs 1 \
-  --ref_dir [% gotcloud.ref_dir %] \
-  --outdir  $TMP_DIR
+export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+[% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
+  | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
+  | [% gotcloud.samtools %] sort -l 1 -m 4000M -n -T $TMP_DIR - \
+  | [% gotcloud.samtools %] fixmate - - \
+  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --splitRG --readname --merge --gzip 2> ${TMP_DIR}/fastq.log
 
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
@@ -96,55 +91,14 @@ if [ "$rc" -eq 0 ]; then
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
-  [% IF settings.pipeline == 'cleanUpBam2fastq' -%]
-  if [ "$rc" -eq 0 ]; then
-    $MAPPER_LOG_CMD --message "puring temporary fastq files from [% settings.pipeline %]"
-    rm -rf ${TMP_DIR}/fastqs/tmp.cleanUpBam
-
-    cleanup_rc=$?
-    if [ "$cleanup_rc" -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to delete temporary fastq files from [% settings.pipeline %]"
-      $MAPPER_UPDATE_CMD --state failed --exit-code $cleanup_rc
-      exit 1
-    fi
-  fi
-  [% END -%]
-
-  [% IF settings.next_step == 'align' -%]
-  $MAPPER_CMD launch --verbose --project [% settings.project %] --cluster [% settings.cluster %] --meta-id $META_ID --step align
-  [% END %]
+  # TODO
+  #   - record fastqs
+  #   - detect unpaired reads and bail if found but save output
+  #   - determine any other error conditions
+  # $MAPPER_UPDATE_CMD --fastq-list $LIST
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc
-
-  if [ ! -e $RUN_DIR ]; then
-    $MAPPER_LOG_CMD --message 'RUN_DIR does not exist' --level critical
-    exit $rc
-  fi
-
-  $MAPPER_LOG_CMD --message 'moving TMP_DIR to RUN_DIR'
-  mv $TMP_DIR $RUN_DIR
-
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --mesage 'failed to move TMP_DIR to RUN_DIR' --level critical
-    exit $rc
-  fi
-
-  max_runs=[% settings.max_failed_runs %]
-  run_count=$(find $RUN_DIR -maxdepth 1 -type d|wc -l)
-  runs=$(find $RUN_DIR/* -maxdepth 1 -type d|sort)
-
-  if [ $run_count -gt $max_runs ]; then
-    count=0
-    for run in $runs; do
-      if [ $(($run_count - $max_runs)) -gt $count ]; then
-        $MAPPER_LOG_CMD --message "purging sample [$(basename $run)] from RUN_DIR"
-        rm -rf $run
-      fi
-
-      count=$(($count + 1))
-    done
-  fi
 fi
 
 exit $rc

@@ -6,7 +6,7 @@ AS = NCBI38
 
 # REF_DIR = /data/local/ref/gotcloud.ref/hg38/
 REF = $(REF_DIR)/hs38DH.fa
-REF_DIR_B37 = $(REF_DIR)/../hg37
+REF_DIR_B38 = $(REF_DIR)/../hg38
 DBSNP_VCF = $(REF_DIR)/dbsnp_146.b38.vcf.gz
 HM3_VCF = $(REF_DIR)/hapmap_3.3.b38.sites.vcf.gz
 OMNI_VCF = $(REF_DIR)/1000G_omni2.5.b38.sites.PASS.vcf.gz
@@ -50,7 +50,7 @@ index_EXT = $(recab_EXT).crai
 qplot_IN = -.ubam
 GEN_CRAM = | $(SAMTOOLS_EXE) view -C -T $(REF) - > $(basename $@)
 VIEW_CRAM = $(SAMTOOLS_EXE) view -uh -T $(REF) $(basename $<) |
-CRAM_VIEW = REF_PATH=$(REF_DIR_B37)/md5/%2s/%2s/%s $(SAMTOOLS_EXE) view -uh
+CRAM_VIEW = REF_PATH=$(REF_DIR_B38)/md5/%2s/%2s/%s $(SAMTOOLS_EXE) view -uh,
 
 #KEEP_TMP = 1
 KEEP_LOG = 1
@@ -68,7 +68,7 @@ recab_USER_PARAMS = --maxBaseQual 44
 BAM_LIST = $(OUT_DIR)/bam.list
 
 [bam2fastqStep]
-CMD = $(PIPE)$(BAM_EXE) bam2fastq --nThread 4 --in $(BAM2FASTQ_INPUT) --outBase $(OUTPUT) --splitRG --gzip 2> $(OUTPUT)2fastq.log
+CMD = $(PIPE)$(BAM_EXE) bam2fastq --nThread 4 --in $(BAM2FASTQ_INPUT) --outBase $(OUTPUT) --splitRG --gzip --merge 2> $(OUTPUT)2fastq.log
 BAM2FASTQ_INPUT = -.ubam
 PIPE = $(CRAM_VIEW) ?(BAM) |
 

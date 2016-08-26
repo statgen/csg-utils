@@ -86,6 +86,21 @@ __PACKAGE__->add_unique_constraint("name_UNIQUE", ["name"]);
 
 =head1 RELATIONS
 
+=head2 fastqs
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Fastq>
+
+=cut
+
+__PACKAGE__->has_many(
+  "fastqs",
+  "CSG::Mapper::DB::Schema::Result::Fastq",
+  { "foreign.state_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 results
 
 Type: has_many
@@ -102,8 +117,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-19 09:21:18
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:k5E+OigFDSqf7CXIi/bj8Q
+# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:m/zV28y3VYs8C5ZwHwn5Lw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

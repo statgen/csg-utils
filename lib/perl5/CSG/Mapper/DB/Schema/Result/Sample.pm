@@ -176,6 +176,21 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
+=head2 fastqs
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Fastq>
+
+=cut
+
+__PACKAGE__->has_many(
+  "fastqs",
+  "CSG::Mapper::DB::Schema::Result::Fastq",
+  { "foreign.sample_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 host
 
 Type: belongs_to
@@ -252,6 +267,6 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-27 15:27:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:vVLMrdJz8CBqfDGjhr+HqA
+# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:DHrlmMLVhJxoRPq4xJdhow
 1;

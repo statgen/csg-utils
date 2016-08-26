@@ -98,6 +98,21 @@ __PACKAGE__->set_primary_key("id");
 
 =head1 RELATIONS
 
+=head2 fastqs
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Fastq>
+
+=cut
+
+__PACKAGE__->has_many(
+  "fastqs",
+  "CSG::Mapper::DB::Schema::Result::Fastq",
+  { "foreign.host_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 samples
 
 Type: has_many
@@ -114,8 +129,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2015-12-10 08:51:48
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:t2kKZlfvA8LZE767OBCQyw
+# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YJ0GosEw1pVTwY6nkhMuvg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
