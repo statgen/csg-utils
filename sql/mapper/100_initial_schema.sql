@@ -134,7 +134,6 @@ DROP TABLE IF EXISTS `fastqs` ;
 CREATE TABLE IF NOT EXISTS `fastqs` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `sample_id` INT(11) NOT NULL,
-  `state_id` INT(11) NOT NULL,
   `build` VARCHAR(45) NOT NULL DEFAULT '38',
   `path` TEXT NOT NULL,
   `read_group` TEXT NOT NULL,
