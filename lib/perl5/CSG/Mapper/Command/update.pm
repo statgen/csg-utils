@@ -128,7 +128,7 @@ sub execute {
         CSG::Mapper::Exceptions::Sample::Fastq::MissingRG->throw();
       }
 
-      my $headers = {map {(split(/$COLON/, $_))[0] => 1} @rg[1 .. $#rg])};
+      my $headers = {map {(split(/$COLON/, $_))[0] => 1} @rg[1 .. $#rg]};
       for (@READ_GROUP_FIELDS) {
         unless (exists $headers->{$_}) {
           CSG::Mapper::Exceptions::Sample::Fastq::MissingHeader->throw(header => $_);
