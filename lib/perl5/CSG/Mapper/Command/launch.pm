@@ -21,6 +21,7 @@ sub opt_spec {
     ['delay=i',      'Amount of time to delay exection in seconds'],
     ['meta-id=i',    'Job meta record for parent job'],
     ['tmp-dir=s',    'Where to write fastq files'],
+    ['sample=s',     'Sample id to submit (e.g. NWD123456)'],
     [
       'step=s',
       'Job step to launch (valid values: bam2fastq|align|all)', {
@@ -110,6 +111,8 @@ sub execute {
   my $dep_job_meta = $self->{stash}->{meta};
   if ($dep_job_meta) {
     push @samples, $dep_job_meta->result->sample;
+  } elsif ($opts->{sample}) {
+    @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
   } else {
     @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
   }
@@ -126,6 +129,7 @@ sub execute {
 
     try {
       $sample_obj->incoming_path;
+      $logger->debug('incoming_path: ' . $sample_obj->incoming_path) if $debug;
     }
     catch {
       if (not ref $_) {
@@ -136,8 +140,10 @@ sub execute {
         $logger->error($_->description);
         $logger->debug('bam_path: ' . $_->bam_path)   if $debug;
         $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
         $logger->error($_->error);
+
       } else {
         if ($_->isa('Exception::Class')) {
           chomp(my $error = $_->error);
@@ -147,11 +153,8 @@ sub execute {
           print STDERR Dumper $_ if $debug;
         }
       }
-    }
-    finally {
-      unless (@_) {
-        $logger->debug('incoming_path: ' . $sample_obj->incoming_path) if $debug;
-      }
+
+      die;
     };
 
     next unless $sample_obj->has_incoming_path;
@@ -251,49 +254,48 @@ sub execute {
       File::Spec->join($run_dir, join($DASH, ($sample_obj->sample_id, $step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
-    $tt->process(
-      $step->name . q{.sh.tt2}, {
-        job => {
-          procs    => $procs,
-          memory   => $memory,
-          walltime => $walltime,
-          build    => $build,
-          email    => $config->get($project, 'email'),
-          job_name => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
-          account => $config->get($cluster, 'account'),
-          workdir => $log_dir,
-          job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
-          nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : undef,
-        },
-        settings => {
-          tmp_dir         => $tmp_dir,
-          job_log         => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
-          pipeline        => $config->get('pipelines', $sample_obj->center),
-          max_failed_runs => $config->get($project, 'max_failed_runs'),
-          out_dir         => $sample_obj->result_path,
-          run_dir         => $run_dir,
-          project_dir     => $project_dir,
-          delay           => $delay,
-          threads         => $procs,
-          meta_id         => $job_meta->id,
-          mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
-          cluster         => $cluster,
-          project         => $project,
-          next_step       => $opts->{next_step},
-        },
-        gotcloud => {
-          root     => $gotcloud_root,
-          conf     => $gotcloud_conf,
-          ref_dir  => $gotcloud_ref,
-          cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
-          samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
-          bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'), # XXX - would be better to not rely on gotcloud paths
-        },
-        sample => $sample_obj,
-      },
-      $job_file
-      )
-      or die $tt->error();
+    my $params = {sample => $sample_obj,};
+
+    $params->{job} = {
+      procs    => $procs,
+      memory   => $memory,
+      walltime => $walltime,
+      build    => $build,
+      email    => $config->get($project, 'email'),
+      job_name => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
+      account => $config->get($cluster, 'account'),
+      workdir => $log_dir,
+      job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
+      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : undef,
+    };
+
+    $params->{settings} = {
+      tmp_dir         => $tmp_dir,
+      job_log         => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
+      pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
+      max_failed_runs => $config->get($project, 'max_failed_runs'),
+      out_dir         => $sample_obj->result_path,
+      run_dir         => $run_dir,
+      project_dir     => $project_dir,
+      delay           => $delay,
+      threads         => $procs,
+      meta_id         => $job_meta->id,
+      mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
+      cluster         => $cluster,
+      project         => $project,
+      next_step       => $opts->{next_step},
+    };
+
+    $params->{gotcloud} = {
+      root     => $gotcloud_root,
+      conf     => $gotcloud_conf,
+      ref_dir  => $gotcloud_ref,
+      cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
+      samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
+      bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+    };
+
+    $tt->process($step->name . q{.sh.tt2}, $params, $job_file) or die $tt->error();
 
     $logger->debug("wrote batch file to $job_file") if $debug;
 

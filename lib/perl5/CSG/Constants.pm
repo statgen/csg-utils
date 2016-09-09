@@ -15,6 +15,7 @@ our @EXPORT = (
     $DASH
     $SPACE
     $TAB
+    $COLON
     $TIMEZONE
     )
 );
@@ -31,11 +32,13 @@ our @EXPORT_OK = (
     $DASH
     $SPACE
     $TAB
+    $COLON
     $MAX_DELAY
     $TIMEZONE
     $VALID_CLUSTER_REGEXPS
     %CLUSTER_MAP
     @TIME_FORMAT_REGEXPS
+    @READ_GROUP_FIELDS
     )
 );
 
@@ -52,11 +55,13 @@ our %EXPORT_TAGS = (
       $DASH
       $SPACE
       $TAB
+      $COLON
       $TIMEZONE
       $VALID_CLUSTER_REGEXPS
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
+      @READ_GROUP_FIELDS
       )
   ],
   basic => [
@@ -71,6 +76,7 @@ our %EXPORT_TAGS = (
       $DASH
       $SPACE
       $TAB
+      $COLON
       )
   ],
   mapping => [
@@ -79,6 +85,7 @@ our %EXPORT_TAGS = (
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
+      @READ_GROUP_FIELDS
       )
   ],
 );
@@ -93,6 +100,7 @@ Readonly::Scalar our $PIPE       => q{|};
 Readonly::Scalar our $DASH       => q{-};
 Readonly::Scalar our $SPACE      => q{ };
 Readonly::Scalar our $TAB        => qq{\t};
+Readonly::Scalar our $COLON      => q{:};
 Readonly::Scalar our $TIMEZONE   => q{America/Detroit};
 
 Readonly::Scalar our $MAX_DELAY             => 120;
@@ -103,6 +111,7 @@ Readonly::Hash our %CLUSTER_MAP => (
   'ubuntu'  => 'csg',
 );
 
+Readonly::Array our @READ_GROUP_FIELDS   => (qw(ID PL PU LB DS DT SM CN));
 Readonly::Array our @TIME_FORMAT_REGEXPS => (
 
   # dd-hh:mm:ss or dd:hh:mm:ss
