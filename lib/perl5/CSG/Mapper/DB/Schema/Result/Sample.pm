@@ -270,7 +270,7 @@ __PACKAGE__->belongs_to(
 # Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
 # DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:DHrlmMLVhJxoRPq4xJdhow
 
-sub has_fastq {
+sub has_fastqs {
   my ($self, $fastq) = @_;
   return $self->search_related('fastqs')->search({path => $fastq})->count;
 }

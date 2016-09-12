@@ -24,10 +24,10 @@ sub opt_spec {
     ['sample=s',     'Sample id to submit (e.g. NWD123456)'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|all)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|align|all/},
+          regex => sub {shift =~ /bam2fastq|align|cloud\-align|all/},
         }
       }
     ], [
@@ -270,10 +270,10 @@ sub execute {
     };
 
     $params->{settings} = {
-      tmp_dir         => $tmp_dir,
-      job_log         => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
-      pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
-      max_failed_runs => $config->get($project, 'max_failed_runs'),
+      tmp_dir  => $tmp_dir,
+      job_log  => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
+      pipeline => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
+      max_failed_runs => $config->get($project,         'max_failed_runs'),
       out_dir         => $sample_obj->result_path,
       run_dir         => $run_dir,
       project_dir     => $project_dir,
@@ -294,6 +294,29 @@ sub execute {
       samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
     };
+
+    if ($sample->fastqs->count) {
+      for my $fastq ($sample->fastqs) {
+
+        my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
+        my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+
+        $params->{fastq}->{all_targets} .= qq{$cram };
+        push @{$params->{fastq}->{targets}}, {
+          file       => $fastq->path,
+          read_group => $fastq->read_group,
+          output     => $cram,
+        };
+      }
+
+      my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
+      $logger->info("cloud-align makefile: $makefile") if $verbose;
+
+      unless (-e $makefile) {
+        $logger->debug("wrote cloud-align makefile to $makefile") if $debug;
+        $tt->process(q{cloud-align-makefile.tt2}, $params, $makefile) or die $tt->error();
+      }
+    }
 
     $tt->process($step->name . q{.sh.tt2}, $params, $job_file) or die $tt->error();
 

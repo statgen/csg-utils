@@ -1,0 +1,7 @@
+all: [% fastq.all_targets %]
+
+[% FOREACH fastq IN fastq.targets -%]
+[% fastq.output %]: [% fastq.file %]
+	[% settings.project_dir %]/../bin/cloud-align.sh "[% fastq.read_group %]" [% settings.out_dir %] [% fastq.file %]
+
+[% END -%]

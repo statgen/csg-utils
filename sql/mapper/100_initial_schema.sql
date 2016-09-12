@@ -249,6 +249,7 @@ START TRANSACTION;
 INSERT INTO `steps` (`id`, `name`) VALUES (DEFAULT, 'all');
 INSERT INTO `steps` (`id`, `name`) VALUES (DEFAULT, 'bam2fastq');
 INSERT INTO `steps` (`id`, `name`) VALUES (DEFAULT, 'align');
+INSERT INTO `steps` (`id`, `name`) VALUES (DEFAULT, 'cloud-align');
 
 COMMIT;
 
