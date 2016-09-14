@@ -295,7 +295,7 @@ sub execute {
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
     };
 
-    if ($sample->fastqs->count) {
+    if ($step->name eq 'cloud-align' and $sample->fastqs->count) {
       for my $fastq ($sample->fastqs) {
 
         my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
@@ -310,6 +310,10 @@ sub execute {
       }
 
       my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
+
+      $params->{fastq}->{count}    = $sample->fastqs->count;
+      $params->{fastq}->{makefile} = $makefile;
+
       $logger->info("cloud-align makefile: $makefile") if $verbose;
 
       unless (-e $makefile) {

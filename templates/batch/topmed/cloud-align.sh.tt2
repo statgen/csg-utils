@@ -1,0 +1,73 @@
+#!/bin/sh
+
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=[% job.procs %]
+#SBATCH --mem=[% job.memory %]
+#SBATCH --time=[% job.walltime %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --partition=nomosix
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --job-name=[% job.job_name %]
+
+JOB_ID=$SLURM_JOB_ID
+NODELIST=$SLURM_JOB_NODELIST
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l nodes=1:ppn=[% job.procs %]
+#PBS -l walltime=[% job.walltime %]
+#PBS -l pmem=[% job.memory %]gb
+#PBS -m a
+#PBS -d [% job.workdir %]
+#PBS -M [% job.email %]
+#PBS -q flux
+#PBS -l qos=flux
+#PBS -A [% job.account %]
+#PBS -V
+#PBS -j oe
+#PBS -N [% job.job_name %]
+
+JOB_ID=$PBS_JOBID
+NODELIST=$(cat $PBS_NODEFILE)
+[% END -%]
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
+
+$MAPPER_LOG_CMD --message 'sending fastq to the cloud'
+$MAPPER_UPDATE_CMD --start --step cloud-align
+
+make -j [% fastq.count %] -f [% fastq.makefile %]
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'cloud alignment failed' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+# TODO - how to validate the make succeeded?
+#
+#      - number of lines in fastq divided by four should equal reads paired in squeueing in the cram
+#
+if [ ! -e $CRAM ]; then
+  $MAPPER_LOG_CMD --message 'cloud alignment did not return a cram'
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+# $MAPPER_LOG_CMD --message 'removing fastq'
+# rm -v [% fastq.path %]
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to delete fastq'
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+exit 0
