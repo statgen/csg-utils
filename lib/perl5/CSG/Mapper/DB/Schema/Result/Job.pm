@@ -54,12 +54,6 @@ __PACKAGE__->table("jobs");
   data_type: 'integer'
   is_nullable: 0
 
-=head2 step_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
 =head2 cluster
 
   data_type: 'varchar'
@@ -145,8 +139,6 @@ __PACKAGE__->add_columns(
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "job_id",
   { data_type => "integer", is_nullable => 0 },
-  "step_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "cluster",
   { data_type => "varchar", is_nullable => 0, size => 45 },
   "procs",
@@ -240,24 +232,9 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
-=head2 step
 
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::Step>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "step",
-  "CSG::Mapper::DB::Schema::Result::Step",
-  { id => "step_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-19 09:21:17
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:7idfHfC64a/8/lCHjYZ8OA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:iOxuetyROa1UM89EdymJ6A
 
 sub cancel {
   my ($self) = @_;

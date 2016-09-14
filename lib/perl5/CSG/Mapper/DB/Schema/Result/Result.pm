@@ -55,6 +55,12 @@ __PACKAGE__->table("results");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 step_id
+
+  data_type: 'integer'
+  is_foreign_key: 1
+  is_nullable: 0
+
 =head2 build
 
   data_type: 'varchar'
@@ -89,6 +95,8 @@ __PACKAGE__->add_columns(
   "sample_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "state_id",
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
+  "step_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "build",
   { data_type => "varchar", default_value => 38, is_nullable => 0, size => 45 },
@@ -172,9 +180,24 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
+=head2 step
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-27 15:27:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:bgMJXY6skvrbz7bheRCarg
+Type: belongs_to
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Step>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "step",
+  "CSG::Mapper::DB::Schema::Result::Step",
+  { id => "step_id" },
+  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:fOhoU1QEc8zzipExgvComQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

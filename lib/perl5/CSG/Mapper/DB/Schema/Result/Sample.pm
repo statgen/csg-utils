@@ -96,6 +96,16 @@ __PACKAGE__->table("samples");
   data_type: 'text'
   is_nullable: 0
 
+=head2 year
+
+  data_type: 'integer'
+  is_nullable: 1
+
+=head2 reads
+
+  data_type: 'bigint'
+  is_nullable: 1
+
 =head2 created_at
 
   data_type: 'datetime'
@@ -132,6 +142,10 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 45 },
   "fullpath",
   { data_type => "text", is_nullable => 0 },
+  "year",
+  { data_type => "integer", is_nullable => 1 },
+  "reads",
+  { data_type => "bigint", is_nullable => 1 },
   "created_at",
   {
     data_type => "datetime",
@@ -267,8 +281,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:DHrlmMLVhJxoRPq4xJdhow
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:rB3jr9ecTkaV7Gg7tVwYmA
 
 sub has_fastqs {
   my ($self, $fastq) = @_;
