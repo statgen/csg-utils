@@ -40,7 +40,6 @@ then
         while [[ $CONTAINER_IS_RUNNING != 0 && $MACHINE_IS_RUNNING != 0 ]]
         do
           sleep 60s
-
           if [[ $(docker-machine ssh $MACHINE_NAME sudo docker ps -al --format {{.Status}}) =~ Exited\ \((.*)\) ]]
           then
             CONTAINER_IS_RUNNING=0
@@ -63,13 +62,6 @@ then
 
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
-          echo "Fetching logs ..."
-          docker-machine ssh $MACHINE_NAME "sudo docker logs $CONTAINER_ID"
-          if [[ $? != 0 ]]
-          then
-            echo "Fetching logs FAILED!"
-          fi
-
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
           echo "Downloading "$OUTPUT_FILE" ..."
           docker-machine scp $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && docker-machine scp $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
@@ -77,8 +69,11 @@ then
           break
         elif [[ $MACHINE_IS_RUNNING == 0 ]] 
         then
-          sleep 300s
-          docker-machine start $MACHINE_NAME
+          EXIT_STATUS=-1
+          echo "Machine stopped"
+          #sleep 300s
+          #echo "Restarting "$MACHINE_NAME" ..."
+          #docker-machine start $MACHINE_NAME
         fi
 
         let COUNTER++
