@@ -80,6 +80,8 @@ sub execute {
     my $host = $schema->resultset('Host')->find_or_create({name => $hostname});
     my $pi = $schema->resultset('Pi')->find_or_create({name => $line->pi});
 
+    print Dumper $line;
+
     $schema->resultset('Sample')->find_or_create(
       {
         sample_id  => $line->sample_id,
@@ -92,7 +94,7 @@ sub execute {
         run_dir    => $line->run_dir,
         fullpath   => $line->fullpath,
         year       => $line->year,
-        reads      => $line->flagstat,
+        flagstat   => $line->flagstat,
       }
     );
   }

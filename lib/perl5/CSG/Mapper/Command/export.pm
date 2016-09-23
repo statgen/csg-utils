@@ -4,6 +4,7 @@ use CSG::Mapper -command;
 use CSG::Base qw(cmd);
 use CSG::Mapper::Config;
 use CSG::Mapper::DB;
+use CSG::Mapper::Logger;
 
 my $schema = CSG::Mapper::DB->new();
 my $logger = CSG::Mapper::Logger->new();

@@ -101,7 +101,7 @@ __PACKAGE__->table("samples");
   data_type: 'integer'
   is_nullable: 1
 
-=head2 reads
+=head2 flagstat
 
   data_type: 'bigint'
   is_nullable: 1
@@ -144,7 +144,7 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 0 },
   "year",
   { data_type => "integer", is_nullable => 1 },
-  "reads",
+  "flagstat",
   { data_type => "bigint", is_nullable => 1 },
   "created_at",
   {
@@ -281,8 +281,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:rB3jr9ecTkaV7Gg7tVwYmA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 14:27:15
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4UyBp7PpsarPM3wjljN5tw
 
 sub has_fastqs {
   my ($self, $fastq) = @_;

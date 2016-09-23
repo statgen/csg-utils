@@ -92,24 +92,24 @@ __PACKAGE__->add_unique_constraint("name_UNIQUE", ["name"]);
 
 =head1 RELATIONS
 
-=head2 results
+=head2 results_states_steps
 
 Type: has_many
 
-Related object: L<CSG::Mapper::DB::Schema::Result::Result>
+Related object: L<CSG::Mapper::DB::Schema::Result::ResultsStatesStep>
 
 =cut
 
 __PACKAGE__->has_many(
-  "results",
-  "CSG::Mapper::DB::Schema::Result::Result",
+  "results_states_steps",
+  "CSG::Mapper::DB::Schema::Result::ResultsStatesStep",
   { "foreign.step_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:vIcoG8ysmT29DlBrprXpJw
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 15:30:37
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mEQR6tQVYMTXU9etldoJ8Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

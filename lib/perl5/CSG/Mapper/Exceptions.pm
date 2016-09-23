@@ -39,8 +39,10 @@ use Exception::Class (
   __PACKAGE__ . '::Sample::Fastq::MissingHeader' => {
     description => 'Fastq list line is missing a header field',
     fields      => [qw(header)],
+  },
+  __PACKAGE__ . '::Sample::InvalidStep' => {
+    description => 'Invalid step for sample availability',
   }
-
 );
 
 1;

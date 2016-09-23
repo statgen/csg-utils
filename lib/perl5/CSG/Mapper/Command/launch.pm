@@ -24,10 +24,10 @@ sub opt_spec {
     ['sample=s',     'Sample id to submit (e.g. NWD123456)'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|cloud-align|all)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|align|cloud\-align|all/},
+          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
         }
       }
     ], [
@@ -114,7 +114,7 @@ sub execute {
   } elsif ($opts->{sample}) {
     @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
   } else {
-    @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
+    @samples = $schema->resultset('Sample')->available_for($build, $step->name);
   }
 
   for my $sample (@samples) {
@@ -153,31 +153,30 @@ sub execute {
           print STDERR Dumper $_ if $debug;
         }
       }
-
-      die;
     };
 
     next unless $sample_obj->has_incoming_path;
 
-    my $result = $sample->results->search({build => $build})->first;
     my $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $sample->sample_id);
 
     if ($opts->{step} eq 'all') {
       $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $opts->{step});
     }
 
+    my $result = $schema->resultset('Result')->find(
+      {
+        sample_id => $sample->id,
+        build     => $build,
+      }
+    );
+
     unless ($dep_job_meta) {
       unless ($result) {
-        $result = $sample->add_to_results(
-          {
-            build    => $build,
-            state_id => $schema->resultset('State')->find({name => 'requested'})->id,
-          }
-        );
-      }
+        my $state = $schema->resultset('State')->find({name => 'requested'});
+        $result   = $sample->add_to_results({build => $build});
 
-      next if $result->state->name ne 'requested';
-      next if $result->build ne $build;
+        $result->add_to_results_states_steps({state_id => $state->id, step_id => $step->id});
+      }
     }
 
     my $delay = $opts->{delay} // int(rand($MAX_DELAY));
@@ -188,7 +187,6 @@ sub execute {
         memory   => $memory,
         walltime => $walltime,
         delay    => $delay,
-        step_id  => $step->id,
       }
     );
 
@@ -295,13 +293,20 @@ sub execute {
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
     };
 
-    if ($step->name eq 'cloud-align' and $sample->fastqs->count) {
+    if ($step->name eq 'cloud-align') {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample') if $verbose;
+        next;
+      }
+
       for my $fastq ($sample->fastqs) {
+        # TODO - need to include all fastqs for a given read group by read_group
 
         my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
         my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
         $params->{fastq}->{all_targets} .= qq{$cram };
+
         push @{$params->{fastq}->{targets}}, {
           file       => $fastq->path,
           read_group => $fastq->read_group,
@@ -335,8 +340,16 @@ sub execute {
 
     try {
       $job->submit($job_file);
+
       $logger->info('submitted job (' . $job->job_id . ') for sample ' . $sample_obj->sample_id) if $verbose;
-      $result->update({state_id => $schema->resultset('State')->find({name => 'submitted'})->id});
+
+      $result->add_to_results_states_steps(
+        {
+          state_id => $schema->resultset('State')->find({name => 'submitted'})->id,
+          step_id  => $step->id,
+        }
+      );
+
       $job_meta->update(
         {
           job_id       => $job->job_id(),

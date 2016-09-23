@@ -49,18 +49,6 @@ __PACKAGE__->table("results");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 state_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
-=head2 step_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
 =head2 build
 
   data_type: 'varchar'
@@ -93,10 +81,6 @@ __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "sample_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
-  "state_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
-  "step_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "build",
   { data_type => "varchar", default_value => 38, is_nullable => 0, size => 45 },
@@ -133,6 +117,22 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key("id");
 
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<index3>
+
+=over 4
+
+=item * L</sample_id>
+
+=item * L</build>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("index3", ["sample_id", "build"]);
+
 =head1 RELATIONS
 
 =head2 jobs
@@ -146,6 +146,21 @@ Related object: L<CSG::Mapper::DB::Schema::Result::Job>
 __PACKAGE__->has_many(
   "jobs",
   "CSG::Mapper::DB::Schema::Result::Job",
+  { "foreign.result_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 results_states_steps
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::ResultsStatesStep>
+
+=cut
+
+__PACKAGE__->has_many(
+  "results_states_steps",
+  "CSG::Mapper::DB::Schema::Result::ResultsStatesStep",
   { "foreign.result_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -165,39 +180,9 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
-=head2 state
 
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::State>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "state",
-  "CSG::Mapper::DB::Schema::Result::State",
-  { id => "state_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
-=head2 step
-
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::Step>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "step",
-  "CSG::Mapper::DB::Schema::Result::Step",
-  { id => "step_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:fOhoU1QEc8zzipExgvComQ
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-21 08:07:10
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:phDSY0AeCvoFSVP2FxNyjA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
@@ -219,6 +204,17 @@ sub cancel {
   my $state = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
   $self->update({ state_id => $state->id });
   return;
+}
+
+sub current_state {
+  my ($self) = @_;
+
+  my $inside_rs = $self->results_states_steps->search();
+  return $self->results_states_steps->find(
+    {
+      id => {'=' => $inside_rs->get_column('id')->max()},
+    }
+  )->state;
 }
 
 1;
