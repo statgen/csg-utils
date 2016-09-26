@@ -17,8 +17,11 @@ gcloud compute instances create --tags $MACHINE_TAG --image ubuntu-1404-alignmen
 EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
 then
+  # Give ssh daemon some time to get running.
+  sleep 30s
+
   #COMMAND="set -o pipefail; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samtools sort -@ 32 -m 2000M --reference /home/alignment/ref/hs38DH.fa -O cram -o /home/alignment/output.cram -T /home/alignment/sort.temp -"
-  COMMAND="set -o pipefail; rm -f /home/alignment/output.cram /home/alignment/output.cram.ok; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samtools view -@ 32 -T /home/alignment/ref/hs38DH.fa -C -o /home/alignment/output.cram - && touch /home/alignment/output.cram.ok"
+  COMMAND="set -o pipefail; rm -f /home/alignment/output.cram /home/alignment/output.cram.ok; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samblaster -a --addMateTags | samtools view -@ 32 -T /home/alignment/ref/hs38DH.fa -C -o /home/alignment/output.cram - && touch /home/alignment/output.cram.ok"
   
   CONTAINER_ID=$(gcloud compute ssh $MACHINE_NAME -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$COMMAND"\")
 
@@ -47,6 +50,13 @@ then
           then
             CONTAINER_IS_RUNNING=0
             EXIT_STATUS=${BASH_REMATCH[1]}
+            
+            echo "Fetching logs ..."
+            gcloud compute ssh $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
+            if [[ $? != 0 ]]
+            then
+              echo "Fetching logs FAILED!"
+            fi
           fi
 
           if [[ $(gcloud compute instances list $MACHINE_NAME | grep RUNNING | wc -l) == 0 ]]
@@ -58,17 +68,11 @@ then
 
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
-          echo "Fetching logs ..."
-          gcloud compute ssh $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
-          if [[ $? != 0 ]]
-          then
-            echo "Fetching logs FAILED!"
-          fi
-
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
           echo "Downloading "$OUTPUT_FILE" ..."
           gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
+          echo 'Download exit status: '$EXIT_STATUS
           break
         elif [[ $MACHINE_IS_RUNNING == 0 ]] 
         then
@@ -83,6 +87,7 @@ then
 fi
 
 # Machine may exist even if "docker-machine create" fails.
+echo 'Cleaning up ...'
 gcloud compute instances delete --quiet $MACHINE_NAME
 
 exit $EXIT_STATUS
