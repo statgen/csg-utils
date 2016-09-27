@@ -29,55 +29,71 @@ then
       docker-machine scp $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
       EXIT_STATUS=$?
 
-      COUNTER=0
-      while [[ $EXIT_STATUS == 0 && $COUNTER -lt 5 ]]
+      RETRY_COUNTER=0
+      while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
       do  
 
         docker-machine ssh $MACHINE_NAME sudo docker start $CONTAINER_ID
+        EXIT_STATUS=$?
 
-        CONTAINER_IS_RUNNING=1
-        MACHINE_IS_RUNNING=1
-        while [[ $CONTAINER_IS_RUNNING != 0 && $MACHINE_IS_RUNNING != 0 ]]
-        do
-          sleep 60s
-          if [[ $(docker-machine ssh $MACHINE_NAME sudo docker ps -al --format {{.Status}}) =~ Exited\ \((.*)\) ]]
-          then
-            CONTAINER_IS_RUNNING=0
-            EXIT_STATUS=${BASH_REMATCH[1]}
+        if [[ $EXIT_STATUS == 0 ]]
+        then
+          CONTAINER_IS_RUNNING=1
+          MACHINE_IS_RUNNING=1
+          FAILED_CONTAINER_POLL_COUNT=0
+          while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
+          do
+            sleep 60s
             
-            echo "Fetching logs ..."
-            docker-machine ssh $MACHINE_NAME "sudo docker logs $CONTAINER_ID"
-            if [[ $? != 0 ]]
+            CONTAINER_STATUS=$(docker-machine ssh $MACHINE_NAME sudo docker ps -al --format {{.Status}})
+            if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
             then
-              echo "Fetching logs FAILED!"
+              CONTAINER_IS_RUNNING=0
+              EXIT_STATUS=${BASH_REMATCH[1]}
+              
+              echo "Fetching logs ..."
+              docker-machine ssh $MACHINE_NAME "sudo docker logs $CONTAINER_ID"
+              if [[ $? != 0 ]]
+              then
+                echo "Fetching logs FAILED!"
+              fi
             fi
-          fi
 
-          if [[ $(docker-machine ls $MACHINE_NAME | grep Running | wc -l) == 0 ]]
+            if [[ $CONTAINER_STATUS ]]
+            then
+              FAILED_CONTAINER_POLL_COUNT=0
+            else
+              let FAILED_CONTAINER_POLL_COUNT++
+              echo "Failed Count: "$FAILED_CONTAINER_POLL_COUNT
+            fi
+
+          done
+
+          if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
           then
-            MACHINE_IS_RUNNING=0
+            OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
+            echo "Downloading "$OUTPUT_FILE" ..."
+            docker-machine scp $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && docker-machine scp $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
+            EXIT_STATUS=$?
+            break
+          elif [[ $FAILED_CONTAINER_POLL_COUNT  == 5 ]] 
+          then
+            EXIT_STATUS=-1
+            echo "Machine stopped"
+            #sleep 300s
+            #echo "Restarting "$MACHINE_NAME" ..."
+            #docker-machine start $MACHINE_NAME
           fi
-
-        done
-
-        if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
-        then
-          OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
-          echo "Downloading "$OUTPUT_FILE" ..."
-          docker-machine scp $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && docker-machine scp $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
-          EXIT_STATUS=$?
-          break
-        elif [[ $MACHINE_IS_RUNNING == 0 ]] 
-        then
-          EXIT_STATUS=-1
-          echo "Machine stopped"
-          #sleep 300s
-          #echo "Restarting "$MACHINE_NAME" ..."
-          #docker-machine start $MACHINE_NAME
         fi
 
-        let COUNTER++
+        let RETRY_COUNTER++
       done
+
+      if [[ $EXIT_STATUS != 0 ]]
+      then
+        break
+      fi
+
     done
   fi
 fi
