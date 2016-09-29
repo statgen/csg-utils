@@ -114,11 +114,12 @@ sub execute {
   } elsif ($opts->{sample}) {
     @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
   } else {
-    @samples = $schema->resultset('Sample')->available_for($build, $step->name);
+    @samples = $schema->resultset('Sample')->all({}, {order_by => 'RAND()'});
   }
 
   for my $sample (@samples) {
     last if $opts->{limit} and $jobs >= $opts->{limit};
+    next unless $sample->is_available($step->name, $build);
 
     my $logger     = CSG::Mapper::Logger->new();
     my $sample_obj = CSG::Mapper::Sample->new(
