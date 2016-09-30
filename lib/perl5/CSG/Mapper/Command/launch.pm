@@ -114,7 +114,7 @@ sub execute {
   } elsif ($opts->{sample}) {
     @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
   } else {
-    @samples = $schema->resultset('Sample')->all({}, {order_by => 'RAND()'});
+    @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
   }
 
   for my $sample (@samples) {
