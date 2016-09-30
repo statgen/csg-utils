@@ -71,7 +71,6 @@ sub _build_conf {
 sub _set_project {
   my ($self, $name, $old_name) = @_;
   croak "no configuraiton for project: $name exists" unless -e $self->_project_conf_file;
-  # TODO - should we cause a reload of _project_conf_file and _project_conf?
 }
 
 sub get {
