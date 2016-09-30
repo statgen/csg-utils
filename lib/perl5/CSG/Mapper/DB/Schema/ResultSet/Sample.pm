@@ -4,6 +4,8 @@ use base qw(DBIx::Class::ResultSet);
 use CSG::Base;
 use CSG::Mapper::Exceptions;
 
+# XXX - not used but might be useful...probably not
+
 sub available_for {
   my ($self, $build, $step)  = @_;
 
@@ -16,8 +18,6 @@ sub available_for {
 }
 
 sub _available_for_bam2fastq {
-  # TODO - needs to find samples where there is no result and where a result has
-  #        is requested
   return shift->search(
     {
       -or => [

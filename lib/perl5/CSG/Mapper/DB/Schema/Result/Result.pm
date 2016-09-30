@@ -201,12 +201,41 @@ sub status_line {
 
 sub cancel {
   my ($self) = @_;
-  my $state = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
-  $self->update({ state_id => $state->id });
+  my $state  = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
+  my $status = $self->current_status;
+
+  $self->add_to_results_states_steps(
+    {
+      state_id => $state->id,
+      step_id  => $status->step_id,
+    }
+  );
+
   return;
 }
 
-sub current_state {
+sub current_state_for_step {
+  my ($self, $step) = @_;
+
+  my $inside_rs = $self->results_states_steps->search(
+    {
+      'step.name' => $step,
+    },
+    {
+      join => 'step',
+    }
+  );
+
+  my $state = $self->results_states_steps->find(
+    {
+      id => {'=' => $inside_rs->get_column('id')->max()},
+    }
+  );
+
+  return $state ? $state->state->name : 'none';
+}
+
+sub current_status {
   my ($self) = @_;
 
   my $inside_rs = $self->results_states_steps->search();
@@ -214,7 +243,32 @@ sub current_state {
     {
       id => {'=' => $inside_rs->get_column('id')->max()},
     }
-  )->state;
+  );
+}
+
+sub current_state {
+  my ($self) = @_;
+  my $status = $self->current_status();
+  return $status ? $status->state->name : 'none';
+}
+
+sub current_step {
+  my ($self) = @_;
+  my $status = $self->current_status();
+  return $status ? $status->step->name : 'none';
+}
+
+sub processed_step {
+  my ($self, $step) = @_;
+
+  return $self->results_states_steps->search(
+    {
+      'step.name' => $step,
+    },
+    {
+      join => 'step',
+    }
+  )->count;
 }
 
 1;

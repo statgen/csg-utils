@@ -11,14 +11,15 @@ sub started   {return shift->_state('started',   @_);}
 sub submitted {return shift->_state('submitted', @_);}
 
 sub _state {
-  my ($self, $state, $build) = @_;
+  my ($self, $state, $step, $build) = @_;
 
   return $self->search(
     {
       'me.build'   => $build,
       'state.name' => $state,
+      'step.name'  => $step,
     }, {
-      join => 'state',
+      join => {results_states_steps => [qw(state step)]},
     }
   );
 }
