@@ -300,20 +300,42 @@ sub execute {
         next;
       }
 
+      my $rg_idx  = 0;
+      my %rg_map  = ();
+      my @targets = ();
       for my $fastq ($sample->fastqs->search(undef, {group_by => 'read_group'})) {
         # TODO - need to include all fastqs for a given read group by read_group
+        #
+        # targets => [
+        #   {
+        #     read_group => read_group
+        #     output     => cram
+        #     files      => [],
+        #   },
+        #   ...
+        # ]
+        #
+        # FIXME - this is probably still not right. needs more testing.
 
         my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
         my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
         $params->{fastq}->{all_targets} .= qq{$cram };
 
-        push @{$params->{fastq}->{targets}}, {
-          file       => $fastq->path,
-          read_group => $fastq->read_group,
-          output     => $cram,
-        };
+        if (exists $rg_map{$fastq->read_group}) {
+          push @{$targets[$rg_idx]->{files}}, $fastq->path;
+        } else {
+          $targets[$rg_idx] = {
+            output     => $cram,
+            read_group => $fastq->read_group,
+            files      => [$fastq->path],
+          };
+
+          $rg_map{$fastq->read_group} = $rg_idx++;
+        }
       }
+
+      $params->{fastq}->{targets} = \@targets;
 
       my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
 
