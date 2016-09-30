@@ -27,7 +27,7 @@ use Exception::Class (
   __PACKAGE__ . '::Sample::SlotFailed' => {
     description => 'Failed to load the slot for this sample',
   },
-  __PACAKGE__ . '::Sample::FastqMismatch' => {
+  __PACKAGE__ . '::Sample::FastqMismatch' => {
     description => 'Sample ID from list file does not match sample_id',
   },
   __PACKAGE__ . '::Sample::FastqNotFound' => {

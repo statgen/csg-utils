@@ -117,7 +117,7 @@ sub execute {
       next if $line =~ /^MERGE/;
       my ($sample_id, $fastq1, $fastq2, @rg) = split(/$TAB/, $line);
 
-      next if $meta->result->sample->has_fastq($fastq1);
+      next if $meta->result->sample->has_fastqs($fastq1);
 
       unless ($sample_id eq $meta->result->sample->sample_id) {
         CSG::Mapper::Exceptions::Sample::FastqMismatch->throw();
