@@ -300,7 +300,7 @@ sub execute {
         next;
       }
 
-      for my $fastq ($sample->fastqs) {
+      for my $fastq ($sample->fastqs->search(undef, {group_by => 'read_group'})) {
         # TODO - need to include all fastqs for a given read group by read_group
 
         my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
