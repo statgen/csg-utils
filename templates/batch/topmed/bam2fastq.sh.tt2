@@ -82,7 +82,7 @@ export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
   | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $TMP_DIR - \
   | [% gotcloud.samtools %] fixmate - - \
-  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --splitRG --readname --merge --gzip 2> ${TMP_DIR}/fastq.log
+  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip 2> ${TMP_DIR}/fastq.log
 
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
