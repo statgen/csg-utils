@@ -196,7 +196,7 @@ sub status_line {
     $self->sample->center->name,
     $self->sample->study->name,
     $self->sample->pi->name,
-    $self->state->name;
+    $self->current_state;
 }
 
 sub cancel {

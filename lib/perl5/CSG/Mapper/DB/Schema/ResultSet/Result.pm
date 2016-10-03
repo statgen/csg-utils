@@ -19,7 +19,8 @@ sub _state {
       'state.name' => $state,
       'step.name'  => $step,
     }, {
-      join => {results_states_steps => [qw(state step)]},
+      join     => {results_states_steps => [qw(state step)]},
+      group_by => 'me.sample_id',
     }
   );
 }

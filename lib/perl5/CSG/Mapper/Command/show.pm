@@ -11,7 +11,8 @@ sub opt_spec {
   return (
     ['info',      'display basic job info'],
     ['meta-id=i', 'job meta id'],
-    ['state|s=s', 'display results for a given state [submitted|requested|failed|cancelled|completed]'],
+    ['step=s',    'display results for a given step (e.g. bam2fastq, align)'],
+    ['state=s',   'display results for a given state (e.g. submitted, requested, failed)'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -36,9 +37,21 @@ sub validate_args {
   }
 
   if ($opts->{state}) {
-    unless ($schema->resultset('State')->find({name => $opts->{state}})) {
+    my $state = $schema->resultset('State')->find({name => $opts->{state}});
+    unless ($state) {
       $self->usage_error('invalid state');
     }
+
+    $self->{stash}->{state} = $state;
+  }
+
+  if ($opts->{step}) {
+    my $step = $schema->resultset('Step')->find({name => $opts->{step}});
+    unless ($step) {
+      $self->usage_error('invalid step');
+    }
+
+    $self->{stash}->{step} = $step;
   }
 }
 
@@ -51,16 +64,12 @@ sub execute {
   }
 
   if ($opts->{state}) {
-    my $results = $schema->resultset('Result')->search(
-      {
-        'me.build'   => $self->app->global_options->{build},
-        'state.name' => $opts->{state},
-      }, {
-        join => 'state',
-      }
-    );
+    my $build = $self->app->global_options->{build};
+    my $state = $self->{stash}->{state};
+    my $step  = $self->{stash}->{step};
 
-    for my $result ($results->all()) {
+    for my $result ($schema->resultset('Result')->search({build => $build})) {
+      next unless $result->current_state eq $state->name;
       say $result->status_line();
     }
   }

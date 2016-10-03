@@ -61,9 +61,10 @@ sub _totals {
   print << "EOF"
 STEP: $step
 ----------
-Completed:  $completed
-Submitted:  $submitted
 Requested:  $requested
+Submitted:  $submitted
+Running:    $running
+Completed:  $completed
 Cancelled:  $cancelled
 Failed:     $failed
 ----------

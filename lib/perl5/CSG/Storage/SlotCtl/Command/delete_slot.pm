@@ -9,7 +9,10 @@ use IO::Prompter {ask => [-in => *STDIN, -out => *STDOUT, -yn, -style => 'bold r
 my $schema = CSG::Storage::Slots::DB->new();
 
 sub opt_spec {
-  return (['name|n=s', 'Name of slot to delete', {required => 1}]);
+  return (
+    ['name|n=s', 'Name of slot to delete', {required => 1}],
+    ['force|f',  'Delete slot and contents'],
+  );
 }
 
 sub validate_args {
