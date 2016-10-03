@@ -16,7 +16,8 @@ sub execute {
   my $logger = CSG::Logger->new();
   my $slot   = CSG::Storage::Slots->find(
     name    => $opts->{name},
-    project => $self->app->global_options->{project}
+    project => $self->app->global_options->{project},
+    prefix  => $self->app->global_options->{prefix},
   );
 
   if ($slot) {
