@@ -92,19 +92,19 @@ sub execute {
     ? $opts->{procs}
     : ($config->get($project, $step->name . '_procs'))
       ? $config->get($project, $step->name . '_procs')
-      : $config->get($cluster, 'procs');
+      : $config->get($cluster, $step->name . '_procs');
 
   my $memory = ($opts->{memory})
     ? $opts->{memory}
     : ($config->get($project, $step->name . '_memory'))
       ? $config->get($project, $step->name . '_memory')
-      : $config->get($cluster, 'memory');
+      : $config->get($cluster, $step->name . '_memory');
 
   my $walltime = ($opts->{walltime})
     ? $opts->{walltime}
     : ($config->get($project, $step->name . '_walltime'))
       ? $config->get($project, $step->name . '_walltime')
-      : $config->get($cluster, 'walltime');
+      : $config->get($cluster, $step->name . '_walltime');
   ## use tidy
 
   my @samples      = ();
