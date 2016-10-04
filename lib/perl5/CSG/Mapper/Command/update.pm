@@ -102,7 +102,7 @@ sub execute {
   }
 
   if ($state) {
-    my $log = sprintf "changing result state from '%s' to '%s' for step '%s'\n", $meta->result->current_state, $state->name, $step->name;
+    my $log = sprintf "changing result state from '%s' to '%s' for step '%s'", $meta->result->current_state, $state->name, $step->name;
     $logger->info($log);
 
     $meta->result->add_to_results_states_steps(
