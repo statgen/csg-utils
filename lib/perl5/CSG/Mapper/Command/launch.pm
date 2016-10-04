@@ -279,7 +279,7 @@ sub execute {
       delay           => $delay,
       threads         => $procs,
       meta_id         => $job_meta->id,
-      mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
+      mapper_cmd      => $PROGRAM_NAME,
       cluster         => $cluster,
       project         => $project,
       next_step       => $opts->{next_step},
