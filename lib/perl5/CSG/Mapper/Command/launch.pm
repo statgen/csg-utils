@@ -253,7 +253,7 @@ sub execute {
       File::Spec->join($run_dir, join($DASH, ($sample_obj->sample_id, $step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
-    my $params = {sample => $sample_obj,};
+    my $params = {sample => $sample_obj};
 
     $params->{job} = {
       procs    => $procs,
@@ -265,7 +265,7 @@ sub execute {
       account => $config->get($cluster, 'account'),
       workdir => $log_dir,
       job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
-      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : undef,
+      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
     };
 
     $params->{settings} = {
