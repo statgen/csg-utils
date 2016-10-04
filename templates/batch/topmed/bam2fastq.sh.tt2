@@ -11,6 +11,8 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
+#SBATCH --nodes=1-1
+#SBATCH --nodelist=[% job.nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -46,7 +48,7 @@ export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 
 $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 
-$MAPPER_LOG_CMD --message 'starting remapping pipeline'
+$MAPPER_LOG_CMD --message 'starting bam2fastq'
 
 if [ -e $TMP_DIR ]; then
   $MAPPER_LOG_CMD --message 'removing existing TMP_DIR'
