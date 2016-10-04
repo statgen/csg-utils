@@ -1,6 +1,7 @@
 package CSG::Storage::Slots;
 
 use CSG::Base;
+use CSG::Constants;
 use CSG::Storage::Slots::DB;
 use CSG::Storage::Slots::Exceptions;
 use CSG::Types;
@@ -8,6 +9,7 @@ use CSG::Types;
 use Moose;
 use Digest::SHA qw(sha1_hex);
 use overload '""' => sub {shift->to_string};
+use Path::Tiny ();
 
 has '_record' => (
   is        => 'rw',
@@ -151,6 +153,10 @@ sub _build_path {
 
 sub to_string {
   return shift->path;
+}
+
+sub is_empty {
+  return (Path::Tiny::path(shift->path)->children) ? $FALSE : $TRUE;
 }
 
 sub find {
