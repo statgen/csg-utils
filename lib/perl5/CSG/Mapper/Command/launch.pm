@@ -292,6 +292,8 @@ sub execute {
       cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
       samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      bwa      => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
+      samblaster => File::Spec->join($gotcloud_root, '..', 'samblaster', 'bin', 'samblaster'), # TODO - need real path
     };
 
     if ($step->name eq 'cloud-align') {
@@ -348,6 +350,14 @@ sub execute {
         $logger->debug("wrote cloud-align makefile to $makefile") if $debug;
         $tt->process(q{cloud-align-makefile.tt2}, $params, $makefile) or die $tt->error();
       }
+    } elsif ($step->name eq 'local-align') {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample') if $verbose;
+        next;
+      }
+
+      # TODO - going to do stack all the fastqs as tasks within a single job.
+      #        this makes life much simpler.
     }
 
     $tt->process($step->name . q{.sh.tt2}, $params, $job_file) or die $tt->error();
