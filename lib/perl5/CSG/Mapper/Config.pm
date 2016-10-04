@@ -2,7 +2,7 @@ package CSG::Mapper::Config;
 
 use Moose;
 
-use CSG::Base qw(config);
+use CSG::Base qw(config file);
 use CSG::Constants;
 use CSG::Types;
 
@@ -16,7 +16,7 @@ has 'project' => (
 has '_config_dir' => (
   is      => 'ro',
   isa     => 'Directory',
-  default => sub { return qq{$FindBin::Bin/../config}},
+  default => sub { return dirname($ENV{CSG_MAPPING_CONF}); },
 );
 
 has '_global_conf_file' => (
