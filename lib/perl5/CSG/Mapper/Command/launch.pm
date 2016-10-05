@@ -269,9 +269,9 @@ sub execute {
     };
 
     $params->{settings} = {
-      tmp_dir  => $tmp_dir,
-      job_log  => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
-      pipeline => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
+      tmp_dir         => $tmp_dir,
+      job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
+      pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
       max_failed_runs => $config->get($project,         'max_failed_runs'),
       out_dir         => $sample_obj->result_path,
       run_dir         => $run_dir,
