@@ -41,6 +41,7 @@ requires 'File::Stat';
 requires 'File::Spec';
 requires 'Filesys::DiskUsage';
 requires 'Path::Class';
+requires 'Path::Tiny';
 
 on 'test' => sub {
   requires 'SQL::Translator';
