@@ -34,19 +34,20 @@ then
       gcloud compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
       EXIT_STATUS=$?
 
-      COUNTER=0
-      while [[ $EXIT_STATUS == 0 && $COUNTER -lt 5 ]]
+      RETRY_COUNTER=0
+      while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
       do  
 
         gcloud compute ssh $MACHINE_NAME -- sudo docker start $CONTAINER_ID
 
         CONTAINER_IS_RUNNING=1
-        MACHINE_IS_RUNNING=1
-        while [[ $CONTAINER_IS_RUNNING != 0 && $MACHINE_IS_RUNNING != 0 ]]
+        FAILED_CONTAINER_POLL_COUNT=0
+        while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
         do
           sleep 60s
 
-          if [[ $(gcloud compute ssh $MACHINE_NAME -- sudo docker ps -al --format {{.Status}}) =~ Exited\ \((.*)\) ]]
+          CONTAINER_STATUS=$(gcloud compute ssh $MACHINE_NAME -- sudo docker ps -al --format {{.Status}})
+          if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
           then
             CONTAINER_IS_RUNNING=0
             EXIT_STATUS=${BASH_REMATCH[1]}
@@ -59,11 +60,17 @@ then
             fi
           fi
 
-          if [[ $(gcloud compute instances list $MACHINE_NAME | grep RUNNING | wc -l) == 0 ]]
+          # if [[ $(gcloud compute instances list $MACHINE_NAME | grep RUNNING | wc -l) == 0 ]]
+          # then
+          #   MACHINE_IS_RUNNING=0
+          # fi
+          if [[ $CONTAINER_STATUS ]]
           then
-            MACHINE_IS_RUNNING=0
+            FAILED_CONTAINER_POLL_COUNT=0
+          else
+            let FAILED_CONTAINER_POLL_COUNT++
+            echo "Failed Count: "$FAILED_CONTAINER_POLL_COUNT
           fi
-
         done
 
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
@@ -74,13 +81,14 @@ then
           EXIT_STATUS=$?
           echo 'Download exit status: '$EXIT_STATUS
           break
-        elif [[ $MACHINE_IS_RUNNING == 0 ]] 
+        elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
         then
-          sleep 300s
+          #sleep 300s
+          echo "Machine stopped. Restarting "$MACHINE_NAME" ..."
           gcloud compute instances start $MACHINE_NAME
         fi
 
-        let COUNTER++
+        let RETRY_COUNTER++
       done
     done
   fi
