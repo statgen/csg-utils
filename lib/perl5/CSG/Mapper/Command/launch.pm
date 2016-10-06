@@ -135,12 +135,12 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::NotFound')) {
         $logger->error($_->description);
-        $logger->debug('bam_path: ' . $_->bam_path)   if $debug;
-        $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+        $logger->error('bam_path: ' . $_->bam_path);
+        $logger->error('cram_path: ' . $_->cram_path);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
         $logger->error($_->error);
@@ -194,7 +194,7 @@ sub execute {
     $logger->job_id($job_meta->id);
 
     unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir');
+      $logger->debug('creating out_dir') if $debug;
       make_path($sample_obj->result_path);
     }
 
@@ -393,7 +393,7 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::BatchFileNotFound')) {
         $logger->error($_->description);
@@ -406,7 +406,7 @@ sub execute {
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::ProcessOutput')) {
         $logger->error($_->description);
-        $logger->debug($_->output) if $debug;
+        $logger->error($_->output);
 
       } else {
         if ($_->isa('Exception::Class')) {
