@@ -320,7 +320,7 @@ sub is_available {
   return $TRUE unless $result->processed_step($step);
 
   # XXX - don't bother with the rest of the tests if it's already complete
-  return $FALSE if $result->current_state_for_step($step) eq 'completed';
+  return $FALSE if $result->completed_step($step);
 
   return $TRUE;
 }

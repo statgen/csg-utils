@@ -135,12 +135,12 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::NotFound')) {
         $logger->error($_->description);
-        $logger->debug('bam_path: ' . $_->bam_path)   if $debug;
-        $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+        $logger->error('bam_path: ' . $_->bam_path);
+        $logger->error('cram_path: ' . $_->cram_path);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
         $logger->error($_->error);
@@ -194,7 +194,7 @@ sub execute {
     $logger->job_id($job_meta->id);
 
     unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir');
+      $logger->debug('creating out_dir') if $debug;
       make_path($sample_obj->result_path);
     }
 
@@ -250,7 +250,7 @@ sub execute {
     }
 
     my $job_file =
-      File::Spec->join($run_dir, join($DASH, ($sample_obj->sample_id, $step->name, $sample_obj->build_str, $cluster . '.sh')));
+      File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
     my $params = {sample => $sample_obj};
@@ -269,9 +269,9 @@ sub execute {
     };
 
     $params->{settings} = {
-      tmp_dir  => $tmp_dir,
-      job_log  => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
-      pipeline => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
+      tmp_dir         => $tmp_dir,
+      job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
+      pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
       max_failed_runs => $config->get($project,         'max_failed_runs'),
       out_dir         => $sample_obj->result_path,
       run_dir         => $run_dir,
@@ -393,7 +393,7 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::BatchFileNotFound')) {
         $logger->error($_->description);
@@ -406,7 +406,7 @@ sub execute {
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::ProcessOutput')) {
         $logger->error($_->description);
-        $logger->debug($_->output) if $debug;
+        $logger->error($_->output);
 
       } else {
         if ($_->isa('Exception::Class')) {

@@ -277,9 +277,10 @@ sub _build_log_dir {
 
   return $self->slot->log_path if $self->has_slot;
 
-  my $log_dir = $self->_conf->get($self->project, 'log_dir');
   my $workdir = $self->_conf->get($self->project, 'workdir');
-  return File::Spec->join($self->prefix, $workdir, $log_dir, $self->center, $self->pi, $self->sample_id);
+  my $run_dir = $self->_conf->get($self->project, 'run_dir');
+
+  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->sample_id);
 }
 
 sub _build_state_dir {
@@ -290,7 +291,7 @@ sub _build_state_dir {
   my $workdir = $self->_conf->get($self->project, 'workdir');
   my $run_dir = $self->_conf->get($self->project, 'run_dir');
 
-  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->build_str);
+  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->sample_id);
 }
 
 sub is_complete {

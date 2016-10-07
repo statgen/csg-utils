@@ -42,7 +42,6 @@ sub validate_args {
 
   if ($opts->{start} and $meta->started_at) {
     $self->usage_error('job has already started');
-    $self->{stash}->{state} = $schema->resultset('State')->find({name => 'started'});
   }
 
   if (defined $opts->{exit_code} and $meta->ended_at) {
@@ -78,6 +77,7 @@ sub execute {
 
   if ($opts->{start}) {
     $params->{started_at} = $schema->now();
+    $state = $schema->resultset('State')->find({name => 'started'});
   }
 
   if ($opts->{job_id}) {

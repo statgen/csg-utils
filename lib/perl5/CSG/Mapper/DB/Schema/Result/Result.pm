@@ -271,4 +271,9 @@ sub processed_step {
   )->count;
 }
 
+sub completed_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'completed';
+}
+
 1;

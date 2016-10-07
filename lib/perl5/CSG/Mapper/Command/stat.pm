@@ -49,26 +49,33 @@ sub _totals {
 
   my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step);
 
-  my $total     = $project->samples->count;
-  my $completed = $schema->resultset('Result')->completed($step, $build)->count;
-  my $failed    = $schema->resultset('Result')->failed($step, $build)->count;
-  my $running   = $schema->resultset('Result')->started($step, $build)->count;
-  my $submitted = $schema->resultset('Result')->submitted($step, $build)->count;
-  my $cancelled = $schema->resultset('Result')->cancelled($step, $build)->count;
-  my $requested = $schema->resultset('Result')->requested($step, $build)->count;
+  my $totals = {
+    total_samples => $project->samples->count,
+    completed     => 0,
+    failed        => 0,
+    started       => 0,
+    submitted     => 0,
+    cancelled     => 0,
+    requested     => 0,
+  };
+
+  for ($results->all) {
+    $totals->{$_->state->name}++;
+  }
 
   print << "EOF"
 STEP: $step
 ----------
-Requested:  $requested
-Submitted:  $submitted
-Running:    $running
-Completed:  $completed
-Cancelled:  $cancelled
-Failed:     $failed
+Requested:  $totals->{requested}
+Submitted:  $totals->{submitted}
+Running:    $totals->{started}
+Completed:  $totals->{completed}
+Cancelled:  $totals->{cancelled}
+Failed:     $totals->{failed}
 ----------
-Total:      $total
+Total:      $totals->{total_samples}
 EOF
 }
 
