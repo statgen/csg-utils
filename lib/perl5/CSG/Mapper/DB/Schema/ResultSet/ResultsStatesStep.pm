@@ -4,14 +4,15 @@ use base qw(DBIx::Class::ResultSet);
 use CSG::Base;
 
 sub current_results_by_step {
-  my ($self, $step) = @_;
+  my ($self, $build, $step) = @_;
 
   return $self->search(
     {
-      'step.name' => $step,
+      'step.name'    => $step,
+      'result.build' => $build,
     },
     {
-      join     => 'step',
+      join     => [qw(result step)],
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search({}, {
@@ -20,15 +21,16 @@ sub current_results_by_step {
 }
 
 sub current_results_by_step_state {
-  my ($self, $step, $state) = @_;
+  my ($self, $build, $step, $state) = @_;
 
   return $self->search(
     {
-      'step.name'  => $step,
-      'state.name' => $state,
+      'step.name'    => $step,
+      'state.name'   => $state,
+      'result.build' => $build,
     },
     {
-      join     => [qw(step state)],
+      join     => [qw(result step state)],
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search({}, {
