@@ -42,6 +42,9 @@ use Exception::Class (
   },
   __PACKAGE__ . '::Sample::InvalidStep' => {
     description => 'Invalid step for sample availability',
+  },
+  __PACKAGE__ . '::Sample::Fastq::ListEmpty' => {
+    description => 'Fastq list file did not contain any fastqs',
   }
 );
 

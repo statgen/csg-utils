@@ -94,7 +94,16 @@ if [ "$rc" -eq 0 ]; then
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
   # TODO - detect unpaired reads and bail if found but save output
-  $MAPPER_UPDATE_CMD --fastq-list ${TMP_DIR}/[% sample.sample_id %].list
+
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+    rc=$?
+  fi
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc
