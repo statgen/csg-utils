@@ -38,4 +38,20 @@ sub current_results_by_step_state {
   });
 }
 
+sub current_state_for_result {
+  my ($self, $result_id) = @_;
+
+  return $self->search(
+    {
+      'result.id' => $result_id,
+    },
+    {
+      join     => 'result',
+      order_by => 'created_at desc',
+    }
+  )->as_subselect_rs->search({}, {
+      group_by => 'result_id'
+  });
+}
+
 1;
