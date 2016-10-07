@@ -79,7 +79,7 @@ sleep "[% settings.delay %]m"
 $MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %].$JOB_ID
 $MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 
-export REF_PATH=[% gotcloud.ref_dir %]/../hg38/hs38DH.fa
+export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 [% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
   | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $TMP_DIR - \
