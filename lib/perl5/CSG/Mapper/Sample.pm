@@ -242,6 +242,10 @@ sub _build_incoming_path {
     # Backed up/squeezed path:
     # /<prefix>/<host>/<project_backup_dir>/<project_incoming_dir>/<center>/<run_dir>/<sample_id>.src.cram
     $cram = File::Spec->join($base_dir, $backup_dir, $incoming_dir, $self->center, $self->run_dir, $self->sample_id . '.src.cram');
+
+    # TODO - there are cases where the file is not in NWD123456.src.cram format, such as WHI samples.
+    #        we will need to come up with a different way to handle these with
+    #        likely another util that gives paths for everything.
   }
 
   return $bam  if -e $bam;

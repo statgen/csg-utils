@@ -79,7 +79,7 @@ sleep "[% settings.delay %]m"
 $MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %].$JOB_ID
 $MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 
-export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 [% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
   | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $TMP_DIR - \
@@ -94,7 +94,16 @@ if [ "$rc" -eq 0 ]; then
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
   # TODO - detect unpaired reads and bail if found but save output
-  $MAPPER_UPDATE_CMD --fastq-list ${TMP_DIR}/[% sample.sample_id %].list
+
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+    rc=$?
+  fi
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc

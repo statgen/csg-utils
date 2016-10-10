@@ -114,8 +114,14 @@ sub execute {
   }
 
   if ($opts->{fastq_list}) {
-    for my $line (io($opts->{fastq_list})->chomp->getlines) {
-      next if $line =~ /^MERGE/;
+    my @lines = io($opts->{fastq_list})->chomp->getlines;
+    shift @lines;
+
+    if (scalar @lines == 0) {
+      CSG::Mapper::Exceptions::Sample::Fastq::ListEmpty->throw();
+    }
+
+    for my $line (@lines) {
       my ($sample_id, $fastq1, $fastq2, @rg) = split(/$TAB/, $line);
 
       next if $meta->result->sample->has_fastqs($fastq1);

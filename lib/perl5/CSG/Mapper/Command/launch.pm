@@ -173,10 +173,7 @@ sub execute {
 
     unless ($dep_job_meta) {
       unless ($result) {
-        my $state = $schema->resultset('State')->find({name => 'requested'});
-        $result   = $sample->add_to_results({build => $build});
-
-        $result->add_to_results_states_steps({state_id => $state->id, step_id => $step->id});
+        $result = $sample->add_to_results({build => $build});
       }
     }
 
@@ -325,7 +322,7 @@ sub execute {
         $params->{fastq}->{all_targets} .= qq{$cram };
 
         if (exists $rg_map{$fastq->read_group}) {
-          push @{$targets[$rg_idx]->{files}}, $fastq->path;
+          push @{$targets[$rg_map{$fastq->read_group}]->{files}}, $fastq->path;
         } else {
           $targets[$rg_idx] = {
             output     => $cram,

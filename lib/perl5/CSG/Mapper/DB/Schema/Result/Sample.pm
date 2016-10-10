@@ -316,11 +316,17 @@ sub is_available {
   # XXX - no results at all
   return $TRUE unless $result;
 
-  # XXX - no results for step
+  # XXX - no results for step at all
   return $TRUE unless $result->processed_step($step);
 
   # XXX - don't bother with the rest of the tests if it's already complete
   return $FALSE if $result->completed_step($step);
+
+  # XXX - if the current state is requested then it needs processing
+  return $TRUE if $result->requested_step($step);
+
+  # XXX - step is in flight but not completed or has failed
+  return $FALSE if $result->processed_step($step);
 
   return $TRUE;
 }
