@@ -276,4 +276,9 @@ sub completed_step {
   return $self->current_state_for_step($step) eq 'completed';
 }
 
+sub requested_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'requested';
+}
+
 1;
