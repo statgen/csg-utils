@@ -232,9 +232,24 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
+=head2 results_states_steps
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 13:30:26
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:iOxuetyROa1UM89EdymJ6A
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::ResultsStatesStep>
+
+=cut
+
+__PACKAGE__->has_many(
+  "results_states_steps",
+  "CSG::Mapper::DB::Schema::Result::ResultsStatesStep",
+  { "foreign.job_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-11 08:06:01
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Ai/OQPQGjJAfa7XvxP7G7w
 
 sub cancel {
   my ($self) = @_;
@@ -247,8 +262,15 @@ sub cancel {
   );
 
   $self->result->cancel();
+}
 
-  return;
+sub result {
+  my ($self) = @_;
+  return $self->result_source->schema->resultset('ResultsStatesStep')->find(
+    {
+      id => {'=' =>  $self->results_states_steps->search()->get_column('id')->max()},
+    }
+  )->result;
 }
 
 1;

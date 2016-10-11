@@ -207,7 +207,6 @@ DROP TABLE IF EXISTS `jobs` ;
 
 CREATE TABLE IF NOT EXISTS `jobs` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `result_id` INT(11) NOT NULL,
   `job_id` INT(11) NOT NULL,
   `cluster` VARCHAR(45) NOT NULL,
   `procs` INT(11) NOT NULL,
@@ -222,12 +221,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `ended_at` DATETIME NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL,
   `modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_jobs_1`
-    FOREIGN KEY (`result_id`)
-    REFERENCES `results` (`id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+  PRIMARY KEY (`id`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = latin1;
 
@@ -305,6 +299,7 @@ CREATE TABLE IF NOT EXISTS `results_states_steps` (
   `result_id` INT(11) NOT NULL,
   `state_id` INT(11) NOT NULL,
   `step_id` INT(11) NOT NULL,
+  `job_id` INT(12) NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_results_states_steps_1`
@@ -321,12 +316,19 @@ CREATE TABLE IF NOT EXISTS `results_states_steps` (
     FOREIGN KEY (`step_id`)
     REFERENCES `steps` (`id`)
     ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_results_states_steps_4`
+    FOREIGN KEY (`job_id`)
+    REFERENCES `jobs` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACCTION)
 ENGINE = InnoDB;
 
 CREATE INDEX `fk_results_states_steps_2_idx` ON `results_states_steps` (`state_id` ASC);
 
 CREATE INDEX `fk_results_states_steps_3_idx` ON `results_states_steps` (`step_id` ASC);
+
+CREATE INDEX `fk_results_states_steps_4_idx` ON `results_states_steps` (`job_id` ASC);
 
 CREATE INDEX `index4` ON `results_states_steps` (`result_id` ASC);
 
@@ -335,6 +337,8 @@ CREATE INDEX `index5` ON `results_states_steps` (`state_id` ASC);
 CREATE INDEX `index6` ON `results_states_steps` (`step_id` ASC);
 
 CREATE INDEX `index7` ON `results_states_steps` (`result_id` ASC, `created_at` ASC);
+
+CREATE INDEX `index8` ON `results_states_steps` (`job_id` ASC);
 
 
 SET SQL_MODE=@OLD_SQL_MODE;

@@ -181,8 +181,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-21 08:07:10
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:phDSY0AeCvoFSVP2FxNyjA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-11 08:06:01
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ipRC8CREq5WiDxLivIsXDg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
@@ -204,14 +204,13 @@ sub cancel {
   my $state  = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
   my $status = $self->current_status;
 
-  $self->add_to_results_states_steps(
+  return $self->add_to_results_states_steps(
     {
       state_id => $state->id,
       step_id  => $status->step_id,
+      job_id   => $status->job_id,
     }
   );
-
-  return;
 }
 
 sub current_state_for_step {

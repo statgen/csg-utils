@@ -61,6 +61,12 @@ __PACKAGE__->table("results_states_steps");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 job_id
+
+  data_type: 'integer'
+  is_foreign_key: 1
+  is_nullable: 1
+
 =head2 created_at
 
   data_type: 'timestamp'
@@ -79,6 +85,8 @@ __PACKAGE__->add_columns(
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "step_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
+  "job_id",
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "created_at",
   {
     data_type => "timestamp",
@@ -101,6 +109,26 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key("id");
 
 =head1 RELATIONS
+
+=head2 job
+
+Type: belongs_to
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Job>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "job",
+  "CSG::Mapper::DB::Schema::Result::Job",
+  { id => "job_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "NO ACTION",
+    on_update     => "NO ACTION",
+  },
+);
 
 =head2 result
 
@@ -148,8 +176,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-15 11:29:04
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:lMJg/2Nh1E5Iu6EofHSHlA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-10 14:35:38
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Q+J029beovb/s+GOqgtO/A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
