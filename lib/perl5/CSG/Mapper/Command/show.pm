@@ -11,7 +11,7 @@ my $schema = CSG::Mapper::DB->new();
 sub opt_spec {
   return (
     ['info',      'display basic job info'],
-    ['meta-id=i', 'job meta id', {required => 1}],
+    ['meta-id=i', 'job meta id'],
     ['step=s',    'display results for a given step (e.g. bam2fastq, align)'],
     ['state=s',   'display results for a given state (e.g. submitted, requested, failed)'],
     ['stale',     'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
@@ -122,15 +122,21 @@ sub _stale {
 
   my $step    = $self->{stash}->{step};
   my $cluster = $self->app->global_options->{cluster};
-  my $results = $schema->resultset('ResultsStatesSteps')->current_results_by_step($step->name);
+  my $build   = $self->app->global_options->{build};
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
 
   for my $result ($results->all) {
     next unless $result->state->name eq 'started';
-    # TODO - find job_id for this result
-    #        skip result if the job_id belongs to a different cluster than specified
-    #        build job factory object
-    #        find out if the job is still running
-    #        output the result if the job is no longer in the queue
+    next unless $result->job->cluster eq $cluster;
+
+    my $job = CSG::Mapper::Job->new(
+      cluster => $cluster,
+      job_id  => $result->job->job_id
+    );
+
+    my $job_state = $job->state;
+    next if $job_state eq 'running';
+    say $result->result->status_line . 'JobId: ' . $job->job_id . ' JobStatus: ' . $job_state;
   }
 }
 
