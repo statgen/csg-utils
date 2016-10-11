@@ -11,7 +11,7 @@ my $schema = CSG::Mapper::DB->new();
 sub opt_spec {
   return (
     ['info',      'display basic job info'],
-    ['meta-id=i', 'job meta id'],
+    ['meta-id=i', 'job meta id', {required => 1}],
     ['step=s',    'display results for a given step (e.g. bam2fastq, align)'],
     ['state=s',   'display results for a given state (e.g. submitted, requested, failed)'],
     ['stale',     'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
@@ -31,12 +31,6 @@ sub opt_spec {
 
 sub validate_args {
   my ($self, $opts, $args) = @_;
-
-  if ($opts->{info}) {
-    unless ($opts->{meta_id}) {
-      $self->usage_error('meta-id is required');
-    }
-  }
 
   if ($opts->{state}) {
     my $state = $schema->resultset('State')->find({name => $opts->{state}});
@@ -102,6 +96,7 @@ sub _info {
     job => {
       id        => $meta->id,
       job_id    => $meta->job_id,
+      result_id => $meta->result_id,
       cluster   => $meta->cluster,
       procs     => $meta->procs,
       memory    => $meta->memory,
@@ -130,7 +125,7 @@ sub _stale {
   my $results = $schema->resultset('ResultsStatesSteps')->current_results_by_step($step->name);
 
   for my $result ($results->all) {
-    next unless $result->state->name = 'started';
+    next unless $result->state->name eq 'started';
     # TODO - find job_id for this result
     #        skip result if the job_id belongs to a different cluster than specified
     #        build job factory object

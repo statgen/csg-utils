@@ -109,6 +109,7 @@ sub execute {
       {
         state_id => $state->id,
         step_id  => $step->id,
+        job_id   => $meta->id,
       }
     );
   }

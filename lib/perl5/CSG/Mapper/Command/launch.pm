@@ -377,6 +377,7 @@ sub execute {
         {
           state_id => $schema->resultset('State')->find({name => 'submitted'})->id,
           step_id  => $step->id,
+          job_id   => $job_meta->id,
         }
       );
 
