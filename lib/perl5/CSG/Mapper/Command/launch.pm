@@ -302,7 +302,7 @@ sub execute {
       my $rg_idx  = 0;
       my %rg_map  = ();
       my @targets = ();
-      for my $fastq ($sample->fastqs->search(undef, {group_by => 'read_group'})) {
+      for my $fastq ($sample->fastqs) {
         # TODO - need to include all fastqs for a given read group by read_group
         #
         # targets => [
@@ -318,8 +318,6 @@ sub execute {
 
         my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
         my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
-
-        $params->{fastq}->{all_targets} .= qq{$cram };
 
         if (exists $rg_map{$fastq->read_group}) {
           push @{$targets[$rg_map{$fastq->read_group}]->{files}}, $fastq->path;
