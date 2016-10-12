@@ -1,5 +1,6 @@
 language: perl
 perl:
+  - "5.18.2"
   - "5.14.2"
   - "5.10.1"
 before_install:
