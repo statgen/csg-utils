@@ -21,7 +21,7 @@ then
   sleep 30s
 
   #COMMAND="set -o pipefail; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samtools sort -@ 32 -m 2000M --reference /home/alignment/ref/hs38DH.fa -O cram -o /home/alignment/output.cram -T /home/alignment/sort.temp -"
-  COMMAND="set -o pipefail; rm -f /home/alignment/output.cram /home/alignment/output.cram.ok; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samblaster -a --addMateTags | samtools view -@ 32 -T /home/alignment/ref/hs38DH.fa -C -o /home/alignment/output.cram - && samtools flagstat /home/alignment/output.cram > /home/alignment/output.cram.flagstat && touch /home/alignment/output.cram.ok"
+  COMMAND="set -o pipefail; rm -f /home/alignment/output.cram /home/alignment/output.cram.ok; bwa mem -t 32 -K 100000000 -Y -p -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samblaster -a --addMateTags | samtools view -@ 32 -T /home/alignment/ref/hs38DH.fa -C -o /home/alignment/output.cram - && touch /home/alignment/output.cram.ok"
   
   CONTAINER_ID=$(gcloud compute ssh $MACHINE_NAME -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$COMMAND"\")
 
@@ -51,7 +51,7 @@ then
           then
             CONTAINER_IS_RUNNING=0
             EXIT_STATUS=${BASH_REMATCH[1]}
-
+            
             echo "Fetching logs ..."
             gcloud compute ssh $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
             if [[ $? != 0 ]]
@@ -75,17 +75,12 @@ then
 
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
-          for ext in cram cram.ok cram.flagstat; do
-            OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".$ext"
-            INPUT_FILE="/home/alignment/output.$ext"
-
-            echo "Downloading "$OUTPUT_FILE" ..."
-            gcloud compute copy-files $MACHINE_NAME:$INPUT_FILE $OUTPUT_FILE
-
-            EXIT_STATUS=$?
-            echo 'Download exit status: '$EXIT_STATUS
-            break
-          done
+          OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
+          echo "Downloading "$OUTPUT_FILE" ..."
+          gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
+          EXIT_STATUS=$?
+          echo 'Download exit status: '$EXIT_STATUS
+          break
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
         then
           #sleep 300s
