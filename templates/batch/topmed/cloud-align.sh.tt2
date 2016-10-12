@@ -54,7 +54,9 @@ fi
 # TODO - how to validate the make succeeded?
 #
 #      - number of lines in fastq divided by four should equal reads paired in squeueing in the cram
-#
+
+# TODO - run flagstat against all crams
+
 if [ ! -e $CRAM ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment did not return a cram'
   $MAPPER_UPDATE_CMD --state failed

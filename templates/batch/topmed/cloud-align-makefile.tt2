@@ -1,13 +1,9 @@
 CRAMS: [% sample.result_path %]/*.cram
-FLAGSTATS: [% sample.result_path %]/*.flagstat
 
-all: $(CRAMS) $(FLAGSTATS)
+all: $(CRAMS)
 
 [% FOREACH target IN fastq.targets -%]
 [% target.output %]: [% target.files.join(' ') %]
 	[% settings.project_dir %]/../bin/gce-align.sh "[% target.read_group %]" [% settings.out_dir %] [% target.files.join(' ') %]
-
-[% target.output %].flagstat: [% target.output %]
-	[% gotcloud.samtools %] flagstat [% target.output %] > [% target.output %].flagstat
 
 [% END -%]
