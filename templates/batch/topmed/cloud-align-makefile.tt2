@@ -5,6 +5,6 @@ all: [% all_targets %]
 
 [% FOREACH read_group IN fastq.read_groups -%]
 rg_[% read_group.index %]: [% read_group.files.keys.join(' ') %]
-	[% settings.project_dir %]/../bin/gce-align.sh "[% read_group.name %]" [% settings.out_dir %] [% read_group.files.keys.join(' ') %]
+	[% settings.project_dir %]/bin/gce-align.sh "[% read_group.name %]" [% settings.out_dir %] [% read_group.files.keys.join(' ') %] 2>&1 > [% settings.out_dir %]/rg-log-[% read_group.index %].log
 
 [% END -%]
