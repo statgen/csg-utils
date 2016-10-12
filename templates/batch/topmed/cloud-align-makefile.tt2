@@ -1,9 +1,10 @@
-CRAMS: [% sample.result_path %]/*.cram
+[% FOREACH idx IN fastq.indexes -%]
+[% SET all_targets = " rg_$idx$all_targets" -%]
+[% END -%]
+all: [% all_targets %]
 
-all: $(CRAMS)
-
-[% FOREACH target IN fastq.targets -%]
-[% target.output %]: [% target.files.join(' ') %]
-	[% settings.project_dir %]/../bin/gce-align.sh "[% target.read_group %]" [% settings.out_dir %] [% target.files.join(' ') %]
+[% FOREACH read_group IN fastq.read_groups -%]
+rg_[% read_group.index %]: [% read_group.files.keys.join(' ') %]
+	[% settings.project_dir %]/../bin/gce-align.sh "[% read_group.name %]" [% settings.out_dir %] [% read_group.files.keys.join(' ') %]
 
 [% END -%]

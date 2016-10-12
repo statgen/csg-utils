@@ -295,44 +295,28 @@ sub execute {
 
     if ($step->name eq 'cloud-align') {
       unless ($sample->fastqs->count) {
-        $logger->debug('no fastq files recorded for sample') if $verbose;
+        $logger->warning('no fastq files recorded for sample ' . $sample->sample_id);
         next;
       }
 
-      my $rg_idx  = 0;
-      my %rg_map  = ();
-      my @targets = ();
-      for my $fastq ($sample->fastqs) {
-        # TODO - need to include all fastqs for a given read group by read_group
-        #
-        # targets => [
-        #   {
-        #     read_group => read_group
-        #     output     => cram
-        #     files      => [],
-        #   },
-        #   ...
-        # ]
-        #
-        # FIXME - this is probably still not right. needs more testing.
+      my $rg_idx = 0;
+      for my $read_group ($sample->read_groups) {
+        push @{$params->{fastq}->{indexes}}, $rg_idx;
 
-        my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
-        my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+        my $rg_ref = {
+          name  => $read_group,
+          index => $rg_idx++,
+        };
 
-        if (exists $rg_map{$fastq->read_group}) {
-          push @{$targets[$rg_map{$fastq->read_group}]->{files}}, $fastq->path;
-        } else {
-          $targets[$rg_idx] = {
-            output     => $cram,
-            read_group => $fastq->read_group,
-            files      => [$fastq->path],
-          };
+        for my $fastq ($sample->fastqs->search({read_group => $read_group})) {
+          my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
+          my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
-          $rg_map{$fastq->read_group} = $rg_idx++;
+          $rg_ref->{files}->{$fastq->path} = $cram;
         }
-      }
 
-      $params->{fastq}->{targets} = \@targets;
+        push @{$params->{fastq}->{read_groups}}, $rg_ref;
+      }
 
       my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
 
