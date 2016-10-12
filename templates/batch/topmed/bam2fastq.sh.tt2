@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=[% job.procs %]
 #SBATCH --mem=[% job.memory %]
-#SBATCH --gres=tmp:200
+#SBATCH --gres=tmp:100
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
 #SBATCH --partition=topmed
@@ -20,7 +20,7 @@ NODELIST=$SLURM_JOB_NODELIST
 #PBS -l nodes=1:ppn=[% job.procs %]
 #PBS -l walltime=[% job.walltime %]
 #PBS -l pmem=[% job.memory %]gb
-#PBS -l ddisk=200gb
+#PBS -l ddisk=100gb
 #PBS -m a
 #PBS -d [% job.workdir %]
 #PBS -M [% job.email %]
@@ -55,6 +55,15 @@ if [ -e $TMP_DIR ]; then
   rm -rf $TMP_DIR
 fi
 
+$MAPPER_LOG_CMD --message 'created JOB_TMP_DIR'
+JOB_TMP_DIR=/tmp/[% settings.project %]/$JOB_ID
+mkdir -p $JOB_TMP_DIR
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to create JOB_TMP_DIR' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
 $MAPPER_LOG_CMD --message 'creating TMP_DIR'
 mkdir -p $TMP_DIR
 
@@ -82,7 +91,7 @@ $MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 [% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
-  | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $TMP_DIR - \
+  | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $JOB_TMP_DIR - \
   | [% gotcloud.samtools %] fixmate - - \
   | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip 2> ${TMP_DIR}/fastq.log
 
