@@ -121,6 +121,13 @@ sub execute {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     next unless $sample->is_available($step->name, $build);
 
+    if ($step->name =~ /(?:cloud|local)\-align/) {
+      unless ($sample->fastqs->count) {
+        $logger->warning('no fastq files recorded for sample ' . $sample->sample_id);
+        next;
+      }
+    }
+
     my $logger     = CSG::Mapper::Logger->new();
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $cluster,
@@ -298,11 +305,6 @@ sub execute {
     };
 
     if ($step->name eq 'cloud-align') {
-      unless ($sample->fastqs->count) {
-        $logger->warning('no fastq files recorded for sample ' . $sample->sample_id);
-        next;
-      }
-
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
         push @{$params->{fastq}->{indexes}}, $rg_idx;
