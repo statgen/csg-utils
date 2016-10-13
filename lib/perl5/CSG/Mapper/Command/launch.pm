@@ -265,6 +265,10 @@ sub execute {
       nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
     };
 
+    if ($params->{job}->{nodelist} eq 'csgspare') {
+      $params->{job}->{nodelist} = 'topmed';
+    }
+
     $params->{settings} = {
       tmp_dir         => $tmp_dir,
       job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
