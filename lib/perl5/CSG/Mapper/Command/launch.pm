@@ -121,6 +121,8 @@ sub execute {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     next unless $sample->is_available($step->name, $build);
 
+    my $logger = CSG::Mapper::Logger->new();
+
     if ($step->name =~ /(?:cloud|local)\-align/) {
       unless ($sample->fastqs->count) {
         $logger->info('no fastq files recorded for sample ' . $sample->sample_id) if $verbose;
@@ -128,7 +130,6 @@ sub execute {
       }
     }
 
-    my $logger     = CSG::Mapper::Logger->new();
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $cluster,
       record  => $sample,
