@@ -325,7 +325,7 @@ sub execute {
         push @{$params->{fastq}->{read_groups}}, $rg_ref;
       }
 
-      my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
+      my $makefile = File::Spec->join($run_dir, 'Makefile.cloud-align');
 
       $params->{fastq}->{count}    = $sample->fastqs->count;
       $params->{fastq}->{makefile} = $makefile;
