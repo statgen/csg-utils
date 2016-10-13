@@ -42,7 +42,7 @@ sub state {
   my ($self) = @_;
   my $cmd = sprintf $JOB_STATE_CMD_FORMAT, $self->job_id;
   chomp(my $state = capture(EXIT_ANY, $cmd));
-  $state =~ s/^\s+|\s+$//g;
+  $state =~ s/\s+([\w]+)\s+(?:.*)?/$1/;
   return $JOB_STATES{$state};
 }
 
