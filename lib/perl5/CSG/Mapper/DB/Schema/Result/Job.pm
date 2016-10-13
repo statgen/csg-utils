@@ -43,12 +43,6 @@ __PACKAGE__->table("jobs");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 result_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
 =head2 job_id
 
   data_type: 'integer'
@@ -135,8 +129,6 @@ __PACKAGE__->table("jobs");
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
-  "result_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "job_id",
   { data_type => "integer", is_nullable => 0 },
   "cluster",
@@ -217,21 +209,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 result
-
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::Result>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "result",
-  "CSG::Mapper::DB::Schema::Result::Result",
-  { id => "result_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
 =head2 results_states_steps
 
 Type: has_many
@@ -248,8 +225,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-11 08:06:01
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Ai/OQPQGjJAfa7XvxP7G7w
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-13 08:12:57
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MgDSl+4PKgzsg4MG6/+/uA
 
 sub cancel {
   my ($self) = @_;

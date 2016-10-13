@@ -178,7 +178,7 @@ sub execute {
     }
 
     my $delay = $opts->{delay} // int(rand($MAX_DELAY));
-    my $job_meta = $result->add_to_jobs(
+    my $job_meta = $schema->resultset('Job')->create(
       {
         cluster  => $cluster,
         procs    => $procs,
