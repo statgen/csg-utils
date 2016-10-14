@@ -170,11 +170,15 @@ sub execute {
       croak 'Found multiple fastq files when there should only be one';
     }
 
+    unless (-e $fastq->path) {
+      croak 'unable to locate fastq on disk';
+    }
+
     $logger->info('removing fastq from disk');
-    # unlink($fastq->path) if -e $fastq->path;
+    unlink($fastq->path);
 
     $logger->info('removing record from database');
-    # $fastq->delete;
+    $fastq->delete;
   }
 }
 
