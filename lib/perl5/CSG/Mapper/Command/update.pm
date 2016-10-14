@@ -167,18 +167,20 @@ sub execute {
     my $fastq = $meta->result->sample->fastqs->search({path => $opts->{fastq_complete}});
 
     if ($fastq->count > 1) {
+      $logger->info('found multiple records for fastq');
       croak 'Found multiple fastq files when there should only be one';
     }
 
-    unless (-e $fastq->path) {
+    unless (-e $fastq->first->path) {
+      $logger->info('fastq does not exist on disk');
       croak 'unable to locate fastq on disk';
     }
 
     $logger->info('removing fastq from disk');
-    unlink($fastq->path);
+    unlink($fastq->first->path);
 
     $logger->info('removing record from database');
-    $fastq->delete;
+    $fastq->first->delete;
   }
 }
 
