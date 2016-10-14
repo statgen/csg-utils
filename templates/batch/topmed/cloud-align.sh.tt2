@@ -43,33 +43,69 @@ MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
 $MAPPER_LOG_CMD --message 'sending fastq to the cloud'
 $MAPPER_UPDATE_CMD --start --step cloud-align
 
-make -j [% fastq.count %] -f [% fastq.makefile %]
+# TODO - introduce a delay into the makefile at each target to avoid quota problems
+make -j [% fastq.indexes.last + 1 %] -f [% fastq.makefile %]
 
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'cloud alignment failed' --level critical
+  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
 
-# TODO - how to validate the make succeeded?
-#
-#      - number of lines in fastq divided by four should equal reads paired in squeueing in the cram
+rc=0
+[% FOREACH read_group IN fastq.read_groups -%]
+[% FOREACH fastq IN read_group.files.keys -%]
+[% SET cram = read_group.files.$fastq -%]
+[% SET flagstat = cram _ '.flagstat' -%]
+### Begin: [% cram %]
+fastq_file=$(basename [% fastq %])
+cram_file=$(basename [% cram %])
 
-# TODO - run flagstat against all crams
+if [ -e [% cram %] ]; then
+  $MAPPER_LOG_CMD --message "running flagstat on $cram_file"
+  [% gotcloud.samtools %] flagstat [% cram %] > [% flagstat %]
 
-if [ ! -e $CRAM ]; then
-  $MAPPER_LOG_CMD --message 'cloud alignment did not return a cram'
+  if [ $? -eq 0 ]; then
+    fastq_lines=$(zcat [% fastq %] | wc -l)
+    fastq_reads=$(($fastq_lines / 4))
+    cram_reads=$(grep 'paired in sequencing' [% flagstat %] | awk {'print $1'})
+
+    $MAPPER_LOG_CMD --message "validating reads match for $cram_file"
+
+    if [ $fastq_reads -eq $cram_reads ]; then
+      $MAPPER_LOG_CMD --message "reads matched for $cram_file"
+      $MAPPER_LOG_CMD --message "completed alignment of fastq $fastq_file"
+
+      $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
+      $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
+    else
+      $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
+      $MAPPER_UPDATE_CMD --state failed
+      rc=1
+    fi
+  else
+    $MAPPER_LOG_CMD --message "flagstat failed for $cram_file" --level critical
+    $MAPPER_UPDATE_CMD --state failed
+    rc=1
+  fi
+else
+  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram for fastq $fastq_file"
   $MAPPER_UPDATE_CMD --state failed
-  exit 1
+  rc=1
+fi
+### END: [% cram %]
+
+[% END -%]
+[% END -%]
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
+  $MAPPER_UPDATE_CMD --state completed
+
+  $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
+  $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+else
+  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
+  $MAPPER_UPDATE_CMD --state failed
 fi
 
-# $MAPPER_LOG_CMD --message 'removing fastq'
-# rm -v [% fastq.path %]
-
-if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to delete fastq'
-  $MAPPER_UPDATE_CMD --state failed
-  exit 1
-fi
-
-exit 0
+exit $rc

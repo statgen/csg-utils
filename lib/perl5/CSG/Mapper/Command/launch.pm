@@ -121,7 +121,15 @@ sub execute {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     next unless $sample->is_available($step->name, $build);
 
-    my $logger     = CSG::Mapper::Logger->new();
+    my $logger = CSG::Mapper::Logger->new();
+
+    if ($step->name =~ /(?:cloud|local)\-align/) {
+      unless ($sample->fastqs->count) {
+        $logger->info('no fastq files recorded for sample ' . $sample->sample_id) if $verbose;
+        next;
+      }
+    }
+
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $cluster,
       record  => $sample,
@@ -178,13 +186,14 @@ sub execute {
     }
 
     my $delay = $opts->{delay} // int(rand($MAX_DELAY));
-    my $job_meta = $result->add_to_jobs(
+    my $job_meta = $schema->resultset('Job')->create(
       {
         cluster  => $cluster,
         procs    => $procs,
         memory   => $memory,
         walltime => $walltime,
         delay    => $delay,
+        tmp_dir  => $tmp_dir,
       }
     );
 
@@ -265,6 +274,10 @@ sub execute {
       nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
     };
 
+    if ($params->{job}->{nodelist} eq 'csgspare') {
+      $params->{job}->{nodelist} = 'topmed';
+    }
+
     $params->{settings} = {
       tmp_dir         => $tmp_dir,
       job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
@@ -294,47 +307,30 @@ sub execute {
     };
 
     if ($step->name eq 'cloud-align') {
-      unless ($sample->fastqs->count) {
-        $logger->debug('no fastq files recorded for sample') if $verbose;
-        next;
+      if ($sample->fastqs->count) {
+        $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
       }
 
-      my $rg_idx  = 0;
-      my %rg_map  = ();
-      my @targets = ();
-      for my $fastq ($sample->fastqs) {
-        # TODO - need to include all fastqs for a given read group by read_group
-        #
-        # targets => [
-        #   {
-        #     read_group => read_group
-        #     output     => cram
-        #     files      => [],
-        #   },
-        #   ...
-        # ]
-        #
-        # FIXME - this is probably still not right. needs more testing.
+      my $rg_idx = 0;
+      for my $read_group ($sample->read_groups) {
+        push @{$params->{fastq}->{indexes}}, $rg_idx;
 
-        my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
-        my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+        my $rg_ref = {
+          name  => $read_group,
+          index => $rg_idx++,
+        };
 
-        if (exists $rg_map{$fastq->read_group}) {
-          push @{$targets[$rg_map{$fastq->read_group}]->{files}}, $fastq->path;
-        } else {
-          $targets[$rg_idx] = {
-            output     => $cram,
-            read_group => $fastq->read_group,
-            files      => [$fastq->path],
-          };
+        for my $fastq ($sample->fastqs->search({read_group => $read_group})) {
+          my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
+          my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
-          $rg_map{$fastq->read_group} = $rg_idx++;
+          $rg_ref->{files}->{$fastq->path} = $cram;
         }
+
+        push @{$params->{fastq}->{read_groups}}, $rg_ref;
       }
 
-      $params->{fastq}->{targets} = \@targets;
-
-      my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
+      my $makefile = File::Spec->join($run_dir, 'Makefile.cloud-align');
 
       $params->{fastq}->{count}    = $sample->fastqs->count;
       $params->{fastq}->{makefile} = $makefile;

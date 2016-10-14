@@ -331,4 +331,7 @@ sub is_available {
   return $TRUE;
 }
 
+sub read_groups {
+  return map {$_->read_group} shift->fastqs->search({}, {group_by => 'read_group'});
+}
 1;
