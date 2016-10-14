@@ -2,7 +2,7 @@
 package CSG::Mapper::Command::update;
 
 use CSG::Mapper -command;
-use CSG::Base;
+use CSG::Base qw(file);
 use CSG::Constants qw(:basic :mapping);
 use CSG::Mapper::DB;
 use CSG::Mapper::Exceptions;
@@ -164,23 +164,26 @@ sub execute {
   }
 
   if ($opts->{fastq_complete}) {
-    my $fastq = $meta->result->sample->fastqs->search({path => $opts->{fastq_complete}});
+    my $fastq_rs = $meta->result->sample->fastqs->search({path => $opts->{fastq_complete}});
 
-    if ($fastq->count > 1) {
+    if ($fastq_rs->count > 1) {
       $logger->info('found multiple records for fastq');
       croak 'Found multiple fastq files when there should only be one';
     }
 
-    unless (-e $fastq->first->path) {
-      $logger->info('fastq does not exist on disk');
-      croak 'unable to locate fastq on disk';
+    my $fastq = $fastq_rs->first;
+    my $file  = basename($fastq->path);
+
+    unless (-e $fastq->path) {
+      $logger->info("fastq[$file] does not exist on disk");
+      croak "unable to locate fastq[$file] on disk";
     }
 
-    $logger->info('removing fastq from disk');
-    unlink($fastq->first->path);
+    $logger->info("removing fastq[$file] from disk");
+    unlink($fastq->path);
 
-    $logger->info('removing record from database');
-    $fastq->first->delete;
+    $logger->info("removing fastq[$file] record from database");
+    $fastq->delete;
   }
 }
 
