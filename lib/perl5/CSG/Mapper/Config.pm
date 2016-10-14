@@ -2,7 +2,7 @@ package CSG::Mapper::Config;
 
 use Moose;
 
-use CSG::Base qw(config);
+use CSG::Base qw(config file);
 use CSG::Constants;
 use CSG::Types;
 
@@ -16,7 +16,7 @@ has 'project' => (
 has '_config_dir' => (
   is      => 'ro',
   isa     => 'Directory',
-  default => sub { return qq{$FindBin::Bin/../config}},
+  default => sub { return dirname($ENV{CSG_MAPPING_CONF}); },
 );
 
 has '_global_conf_file' => (
@@ -71,7 +71,6 @@ sub _build_conf {
 sub _set_project {
   my ($self, $name, $old_name) = @_;
   croak "no configuraiton for project: $name exists" unless -e $self->_project_conf_file;
-  # TODO - should we cause a reload of _project_conf_file and _project_conf?
 }
 
 sub get {

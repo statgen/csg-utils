@@ -39,8 +39,8 @@ sub execute {
 
   try {
     $job->cancel();
-    $logger->info('cancelled job ' . $job->job_id) if $verbose;
     $meta->cancel();
+    $logger->info('cancelled job ' . $job->job_id);
   }
   catch {
     if (not ref $_) {

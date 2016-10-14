@@ -9,6 +9,7 @@ sub opt_spec {
     ['job-id=s',  'job to provide stats for'],
     ['time-left', 'calculate time remaining in hours for a given jobid'],
     ['totals',    'various counts'],
+    ['step|s=s', 'step a result is in', {required => 1}],
   );
 }
 
@@ -28,7 +29,7 @@ sub execute {
   }
 
   if ($opts->{totals}) {
-    $self->_totals($self->app->global_options->{build});
+    $self->_totals($opts->{step}, $self->app->global_options->{build});
   }
 }
 
@@ -44,27 +45,37 @@ sub _time_left {
 }
 
 sub _totals {
-  my ($self, $build) = @_;
+  my ($self, $step, $build) = @_;
 
   my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step);
 
-  my $total     = $project->samples->count;
-  my $completed = $schema->resultset('Result')->completed($build)->count;
-  my $failed    = $schema->resultset('Result')->failed($build)->count;
-  my $running   = $schema->resultset('Result')->started($build)->count;
-  my $submitted = $schema->resultset('Result')->submitted($build)->count;
-  my $cancelled = $schema->resultset('Result')->cancelled($build)->count;
-  my $requested = $schema->resultset('Result')->requested($build)->count;
+  my $totals = {
+    total_samples => $project->samples->count,
+    completed     => 0,
+    failed        => 0,
+    started       => 0,
+    submitted     => 0,
+    cancelled     => 0,
+    requested     => 0,
+  };
+
+  for ($results->all) {
+    $totals->{$_->state->name}++;
+  }
 
   print << "EOF"
-Completed:  $completed
-Submitted:  $submitted
-Requested:  $requested
-Cancelled:  $cancelled
-Failed:     $failed
+STEP: $step
 ----------
-Total:      $total
+Requested:  $totals->{requested}
+Submitted:  $totals->{submitted}
+Running:    $totals->{started}
+Completed:  $totals->{completed}
+Cancelled:  $totals->{cancelled}
+Failed:     $totals->{failed}
+----------
+Total:      $totals->{total_samples}
 EOF
 }
 

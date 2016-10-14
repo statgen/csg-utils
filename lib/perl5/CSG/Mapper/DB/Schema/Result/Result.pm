@@ -49,12 +49,6 @@ __PACKAGE__->table("results");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 state_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
 =head2 build
 
   data_type: 'varchar'
@@ -87,8 +81,6 @@ __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "sample_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
-  "state_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "build",
   { data_type => "varchar", default_value => 38, is_nullable => 0, size => 45 },
@@ -125,6 +117,22 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key("id");
 
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<index3>
+
+=over 4
+
+=item * L</sample_id>
+
+=item * L</build>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("index3", ["sample_id", "build"]);
+
 =head1 RELATIONS
 
 =head2 jobs
@@ -138,6 +146,21 @@ Related object: L<CSG::Mapper::DB::Schema::Result::Job>
 __PACKAGE__->has_many(
   "jobs",
   "CSG::Mapper::DB::Schema::Result::Job",
+  { "foreign.result_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 results_states_steps
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::ResultsStatesStep>
+
+=cut
+
+__PACKAGE__->has_many(
+  "results_states_steps",
+  "CSG::Mapper::DB::Schema::Result::ResultsStatesStep",
   { "foreign.result_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -157,24 +180,9 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
 );
 
-=head2 state
 
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::State>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "state",
-  "CSG::Mapper::DB::Schema::Result::State",
-  { id => "state_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-27 15:27:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:bgMJXY6skvrbz7bheRCarg
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-11 08:06:01
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ipRC8CREq5WiDxLivIsXDg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
@@ -188,14 +196,88 @@ sub status_line {
     $self->sample->center->name,
     $self->sample->study->name,
     $self->sample->pi->name,
-    $self->state->name;
+    $self->current_state;
 }
 
 sub cancel {
   my ($self) = @_;
-  my $state = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
-  $self->update({ state_id => $state->id });
-  return;
+  my $state  = $self->result_source->schema->resultset('State')->find({name => 'cancelled'});
+  my $status = $self->current_status;
+
+  return $self->add_to_results_states_steps(
+    {
+      state_id => $state->id,
+      step_id  => $status->step_id,
+      job_id   => $status->job_id,
+    }
+  );
+}
+
+sub current_state_for_step {
+  my ($self, $step) = @_;
+
+  my $inside_rs = $self->results_states_steps->search(
+    {
+      'step.name' => $step,
+    },
+    {
+      join => 'step',
+    }
+  );
+
+  my $state = $self->results_states_steps->find(
+    {
+      id => {'=' => $inside_rs->get_column('id')->max()},
+    }
+  );
+
+  return $state ? $state->state->name : 'none';
+}
+
+sub current_status {
+  my ($self) = @_;
+
+  my $inside_rs = $self->results_states_steps->search();
+  return $self->results_states_steps->find(
+    {
+      id => {'=' => $inside_rs->get_column('id')->max()},
+    }
+  );
+}
+
+sub current_state {
+  my ($self) = @_;
+  my $status = $self->current_status();
+  return $status ? $status->state->name : 'none';
+}
+
+sub current_step {
+  my ($self) = @_;
+  my $status = $self->current_status();
+  return $status ? $status->step->name : 'none';
+}
+
+sub processed_step {
+  my ($self, $step) = @_;
+
+  return $self->results_states_steps->search(
+    {
+      'step.name' => $step,
+    },
+    {
+      join => 'step',
+    }
+  )->count;
+}
+
+sub completed_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'completed';
+}
+
+sub requested_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'requested';
 }
 
 1;

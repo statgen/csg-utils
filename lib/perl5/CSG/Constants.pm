@@ -36,6 +36,7 @@ our @EXPORT_OK = (
     $MAX_DELAY
     $TIMEZONE
     $VALID_CLUSTER_REGEXPS
+    $FASTQ_SUFFIX
     %CLUSTER_MAP
     @TIME_FORMAT_REGEXPS
     @READ_GROUP_FIELDS
@@ -58,6 +59,7 @@ our %EXPORT_TAGS = (
       $COLON
       $TIMEZONE
       $VALID_CLUSTER_REGEXPS
+      $FASTQ_SUFFIX
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
@@ -82,6 +84,7 @@ our %EXPORT_TAGS = (
   mapping => [
     qw(
       $VALID_CLUSTER_REGEXPS
+      $FASTQ_SUFFIX
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
@@ -105,6 +108,7 @@ Readonly::Scalar our $TIMEZONE   => q{America/Detroit};
 
 Readonly::Scalar our $MAX_DELAY             => 120;
 Readonly::Scalar our $VALID_CLUSTER_REGEXPS => qr{csg|flux};
+Readonly::Scalar our $FASTQ_SUFFIX          => q{.fastq.gz};
 
 Readonly::Hash our %CLUSTER_MAP => (
   'red hat' => 'flux',

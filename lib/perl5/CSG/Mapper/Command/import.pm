@@ -92,7 +92,7 @@ sub execute {
         run_dir    => $line->run_dir,
         fullpath   => $line->fullpath,
         year       => $line->year,
-        reads      => $line->flagstat,
+        flagstat   => $line->flagstat,
       }
     );
   }

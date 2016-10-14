@@ -11,6 +11,8 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
+#SBATCH --nodes=1-1
+#SBATCH --nodelist=[% job.nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -36,7 +38,7 @@ NODELIST=$(cat $PBS_NODEFILE)
 META_ID=[% settings.meta_id %]
 MAPPER_CMD=[% settings.mapper_cmd %]
 MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step bam2fastq"
 
 TMP_DIR=[% settings.tmp_dir %]
 
@@ -44,9 +46,9 @@ export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
 export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 
-$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step bam2fastq
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 
-$MAPPER_LOG_CMD --message 'starting remapping pipeline'
+$MAPPER_LOG_CMD --message 'starting bam2fastq'
 
 if [ -e $TMP_DIR ]; then
   $MAPPER_LOG_CMD --message 'removing existing TMP_DIR'
@@ -74,15 +76,15 @@ fi
 $MAPPER_LOG_CMD --message "delaying execution for [% settings.delay %] minutes"
 sleep "[% settings.delay %]m"
 
-$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %].$JOB_ID
 $MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 
-export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 [% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
   | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $TMP_DIR - \
   | [% gotcloud.samtools %] fixmate - - \
-  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --splitRG --readname --merge --gzip 2> ${TMP_DIR}/fastq.log
+  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip 2> ${TMP_DIR}/fastq.log
 
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
@@ -92,7 +94,16 @@ if [ "$rc" -eq 0 ]; then
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
   # TODO - detect unpaired reads and bail if found but save output
-  $MAPPER_UPDATE_CMD --fastq-list ${TMP_DIR}/[% sample.sample_id %].list
+
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+    rc=$?
+  fi
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc

@@ -12,6 +12,14 @@ sub opt_spec {
   );
 }
 
+sub validate_args {
+  my ($self, $opts, $args) = @_;
+
+  # FIXME - can't verify completness without knowing all the steps
+  #         in the pipeline which are not defined yet.
+  $self->usage_error('NOT IMPLEMENTED');
+}
+
 sub execute {
   my ($self, $opts, $args) = @_;
 

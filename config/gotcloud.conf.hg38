@@ -50,7 +50,7 @@ index_EXT = $(recab_EXT).crai
 qplot_IN = -.ubam
 GEN_CRAM = | $(SAMTOOLS_EXE) view -C -T $(REF) - > $(basename $@)
 VIEW_CRAM = $(SAMTOOLS_EXE) view -uh -T $(REF) $(basename $<) |
-CRAM_VIEW = REF_PATH=$(REF_DIR_B38)/md5/%2s/%2s/%s $(SAMTOOLS_EXE) view -uh,
+CRAM_VIEW = REF_PATH=$(REF_DIR_B38)/md5/%2s/%2s/%s $(SAMTOOLS_EXE) view -uh
 
 #KEEP_TMP = 1
 KEEP_LOG = 1

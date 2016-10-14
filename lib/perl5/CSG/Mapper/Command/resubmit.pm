@@ -13,6 +13,7 @@ sub opt_spec {
     ['sample-id|s=s', 'Sample ID to resubmit (e.g. NWD12345)'],
     ['failed|f',      'Resubmit all failed jobs'],
     ['do-not-purge',  'Prevent the deletion of OUT_DIR'],
+    ['step=s',        'Job step to resubmit (e.g. bam2fastq, cloud-align)', {required => 1}],
   );
 }
 
@@ -22,48 +23,39 @@ sub execute {
   my @samples = ();
   my $logger  = CSG::Mapper::Logger->new();
   my $schema  = CSG::Mapper::DB->new();
-  my $state   = $schema->resultset('State')->find({name => 'requested'});
   my $debug   = $self->app->global_options->{debug};
   my $build   = $self->app->global_options->{build};
+  my $state   = $schema->resultset('State')->find({name => 'requested'});
+  my $step    = $schema->resultset('Step')->find({name => $opts->{step}});
+
+  unless ($step) {
+    croak "Step, $opts->{step}, is not valid";
+  }
 
   if ($opts->{sample_id}) {
-    push @samples, $opts->{sample_id};
+    push @samples, $schema->resultset('Sample')->find({sample_id => $opts->{sample_id}})->id;
   } elsif ($opts->{failed}) {
-    my $results = $schema->resultset('Result')->search(
-      {
-        'me.build' => $build,
-        'state_id' => $schema->resultset('State')->find({name => 'failed'})->id,
-      }
-    );
-
-    @samples = map {$_->sample->sample_id} $results->all();
+    my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $opts->{step}, 'failed');
+    @samples = map {$_->result->sample->id} $results->all();
   }
 
   for my $sample (@samples) {
-    my $result = $schema->resultset('Result')->search(
-      {
-        'me.build'         => $build,
-        'sample.sample_id' => $sample,
-      }, {
-        join => 'sample',
-      }
-    );
+    my $result = $schema->resultset('Result')->find({build => $build, sample_id => $sample});
 
-    if ($result->count > 1) {
-      croak 'Found multiple results for this sample/build';
+    unless ($result) {
+      croak "No result found for sample[$sample] in build[$build]";
     }
 
-    $result->first->update(
-      {
+    $result->add_to_results_states_steps({
         state_id => $state->id,
-      }
-    );
+        step_id  => $step->id,
+    });
 
     $logger->info("marked sample[$sample] for remapping");
 
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $self->app->global_options->{cluster},
-      record  => $result->first->sample,
+      record  => $result->sample,
       build   => $build,
     );
 

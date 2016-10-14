@@ -1,0 +1,90 @@
+#!/bin/sh
+
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=[% job.procs %]
+#SBATCH --mem=[% job.memory %]
+#SBATCH --gres=tmp:200
+#SBATCH --time=[% job.walltime %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --partition=topmed
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --job-name=[% job.job_name %]
+#SBATCH --dependency=afterok:[% job.job_dep_id %]
+#SBATCH --nodelist=[% job.nodelist %]
+
+JOB_ID=$SLURM_JOB_ID
+NODELIST=$SLURM_JOB_NODELIST
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l nodes=1:ppn=[% job.procs %]
+#PBS -l walltime=[% job.walltime %]
+#PBS -l pmem=[% job.memory %]gb
+#PBS -m a
+#PBS -d [% job.workdir %]
+#PBS -M [% job.email %]
+#PBS -q flux
+#PBS -l qos=flux
+#PBS -A [% job.account %]
+#PBS -V
+#PBS -j oe
+#PBS -N [% job.job_name %]
+#PBS -W depend=afterok:[% job.job_dep_id %]
+
+JOB_ID=$PBS_JOBID
+NODELIST=$(cat $PBS_NODEFILE)
+[% END -%]
+
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
+
+OUT_DIR=[% settings.out_dir %]
+TMP_DIR=[% settings.tmp_dir %]
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step align
+
+if [ ! -e $OUT_DIR ]; then
+  $MAPPER_LOG_CMD --message 'OUT_DIR is missing' --level critical
+  exit 1
+fi
+
+$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_LOG_CMD --message 'begining gotcloud alignment'
+
+export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+
+[% FOREACH target IN fastq.targets -%]
+[% FOREACH file IN target.files -%]
+
+[% gotcloud.bwa %] mem -t [% job.procs %] -K 100000000 -Y -p -R '[% target.read_group %]' [% gotcloud.ref_dir %]/hs38DH.fa [% file %] \
+  | [% gotcloud.samblaster %] -a --addMateTags \
+  | [% gotcloud.sammtools %] view -@ [% job.procs %] -T [% gotcloud.ref_dir %]/hs38DH.fa -C -o [% target.output %].cram -
+
+rc=$?
+
+if [ "$rc" -eq 0 ]; then
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  $MAPPER_LOG_CMD --message 'alignment completed for [% file %]'
+else
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+  $MAPPER_LOG_CMD --message "alignment failed with exit code '$rc' for fastq [% file %]" --level critical
+
+  exit $rc
+fi
+[% END -%]
+[% END -%]
+
+if [ "$rc" -eq 0 ]; then
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  $MAPPER_LOG_CMD --message 'alignment completed'
+fi
+
+exit $rc
+
+# vi: ft=sh

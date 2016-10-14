@@ -96,6 +96,16 @@ __PACKAGE__->table("samples");
   data_type: 'text'
   is_nullable: 0
 
+=head2 year
+
+  data_type: 'integer'
+  is_nullable: 1
+
+=head2 flagstat
+
+  data_type: 'bigint'
+  is_nullable: 1
+
 =head2 created_at
 
   data_type: 'datetime'
@@ -132,6 +142,10 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 45 },
   "fullpath",
   { data_type => "text", is_nullable => 0 },
+  "year",
+  { data_type => "integer", is_nullable => 1 },
+  "flagstat",
+  { data_type => "bigint", is_nullable => 1 },
   "created_at",
   {
     data_type => "datetime",
@@ -267,12 +281,54 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-08-24 10:19:38
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:DHrlmMLVhJxoRPq4xJdhow
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 14:27:15
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4UyBp7PpsarPM3wjljN5tw
 
-sub has_fastq {
+use CSG::Constants;
+
+sub has_fastqs {
   my ($self, $fastq) = @_;
   return $self->search_related('fastqs')->search({path => $fastq})->count;
+}
+
+sub results_for_step_build {
+  my ($self, $step, $build) = @_;
+  return $self->resutls->search(
+    {
+      'me.build'  => $build,
+      'step.name' => $step,
+    },
+    {
+      join => {results_states_steps => 'step'},
+    }
+  );
+}
+
+sub current_state {
+  my ($self, $build) = @_;
+}
+
+sub is_available {
+  my ($self, $step, $build) = @_;
+
+  my $result = $self->results->find({build => $build});
+
+  # XXX - no results at all
+  return $TRUE unless $result;
+
+  # XXX - no results for step at all
+  return $TRUE unless $result->processed_step($step);
+
+  # XXX - don't bother with the rest of the tests if it's already complete
+  return $FALSE if $result->completed_step($step);
+
+  # XXX - if the current state is requested then it needs processing
+  return $TRUE if $result->requested_step($step);
+
+  # XXX - step is in flight but not completed or has failed
+  return $FALSE if $result->processed_step($step);
+
+  return $TRUE;
 }
 
 1;

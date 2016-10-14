@@ -24,10 +24,10 @@ sub opt_spec {
     ['sample=s',     'Sample id to submit (e.g. NWD123456)'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|all)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|align|all/},
+          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
         }
       }
     ], [
@@ -90,21 +90,21 @@ sub execute {
   ## no tidy
   my $procs = ($opts->{procs})
     ? $opts->{procs}
-    : ($config->get($cluster, $step->name . '_procs'))
-      ? $config->get($cluster, $step->name . '_procs')
-      : $config->get($project, 'procs');
+    : ($config->get($project, $step->name . '_procs'))
+      ? $config->get($project, $step->name . '_procs')
+      : $config->get($cluster, $step->name . '_procs');
 
   my $memory = ($opts->{memory})
     ? $opts->{memory}
-    : ($config->get($cluster, $step->name . '_memory'))
-      ? $config->get($cluster, $step->name . '_memory')
-      : $config->get($project, 'memory');
+    : ($config->get($project, $step->name . '_memory'))
+      ? $config->get($project, $step->name . '_memory')
+      : $config->get($cluster, $step->name . '_memory');
 
   my $walltime = ($opts->{walltime})
     ? $opts->{walltime}
-    : ($config->get($cluster, $step->name . '_walltime'))
-      ? $config->get($cluster, $step->name . '_walltime')
-      : $config->get($project, 'walltime');
+    : ($config->get($project, $step->name . '_walltime'))
+      ? $config->get($project, $step->name . '_walltime')
+      : $config->get($cluster, $step->name . '_walltime');
   ## use tidy
 
   my @samples      = ();
@@ -119,6 +119,7 @@ sub execute {
 
   for my $sample (@samples) {
     last if $opts->{limit} and $jobs >= $opts->{limit};
+    next unless $sample->is_available($step->name, $build);
 
     my $logger     = CSG::Mapper::Logger->new();
     my $sample_obj = CSG::Mapper::Sample->new(
@@ -134,12 +135,12 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::NotFound')) {
         $logger->error($_->description);
-        $logger->debug('bam_path: ' . $_->bam_path)   if $debug;
-        $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+        $logger->error('bam_path: ' . $_->bam_path);
+        $logger->error('cram_path: ' . $_->cram_path);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
         $logger->error($_->error);
@@ -153,31 +154,27 @@ sub execute {
           print STDERR Dumper $_ if $debug;
         }
       }
-
-      die;
     };
 
     next unless $sample_obj->has_incoming_path;
 
-    my $result = $sample->results->search({build => $build})->first;
     my $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $sample->sample_id);
 
     if ($opts->{step} eq 'all') {
       $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $opts->{step});
     }
 
+    my $result = $schema->resultset('Result')->find(
+      {
+        sample_id => $sample->id,
+        build     => $build,
+      }
+    );
+
     unless ($dep_job_meta) {
       unless ($result) {
-        $result = $sample->add_to_results(
-          {
-            build    => $build,
-            state_id => $schema->resultset('State')->find({name => 'requested'})->id,
-          }
-        );
+        $result = $sample->add_to_results({build => $build});
       }
-
-      next if $result->state->name ne 'requested';
-      next if $result->build ne $build;
     }
 
     my $delay = $opts->{delay} // int(rand($MAX_DELAY));
@@ -188,14 +185,13 @@ sub execute {
         memory   => $memory,
         walltime => $walltime,
         delay    => $delay,
-        step_id  => $step->id,
       }
     );
 
     $logger->job_id($job_meta->id);
 
     unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir');
+      $logger->debug('creating out_dir') if $debug;
       make_path($sample_obj->result_path);
     }
 
@@ -251,10 +247,10 @@ sub execute {
     }
 
     my $job_file =
-      File::Spec->join($run_dir, join($DASH, ($sample_obj->sample_id, $step->name, $sample_obj->build_str, $cluster . '.sh')));
+      File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
-    my $params = {sample => $sample_obj,};
+    my $params = {sample => $sample_obj};
 
     $params->{job} = {
       procs    => $procs,
@@ -266,21 +262,21 @@ sub execute {
       account => $config->get($cluster, 'account'),
       workdir => $log_dir,
       job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
-      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : undef,
+      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
     };
 
     $params->{settings} = {
       tmp_dir         => $tmp_dir,
-      job_log         => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
+      job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
       pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
-      max_failed_runs => $config->get($project, 'max_failed_runs'),
+      max_failed_runs => $config->get($project,         'max_failed_runs'),
       out_dir         => $sample_obj->result_path,
       run_dir         => $run_dir,
       project_dir     => $project_dir,
       delay           => $delay,
       threads         => $procs,
       meta_id         => $job_meta->id,
-      mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
+      mapper_cmd      => $PROGRAM_NAME,
       cluster         => $cluster,
       project         => $project,
       next_step       => $opts->{next_step},
@@ -293,7 +289,71 @@ sub execute {
       cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
       samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      bwa      => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
+      samblaster => File::Spec->join($gotcloud_root, '..', 'samblaster', 'bin', 'samblaster'), # TODO - need real path
     };
+
+    if ($step->name eq 'cloud-align') {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample') if $verbose;
+        next;
+      }
+
+      my $rg_idx  = 0;
+      my %rg_map  = ();
+      my @targets = ();
+      for my $fastq ($sample->fastqs) {
+        # TODO - need to include all fastqs for a given read group by read_group
+        #
+        # targets => [
+        #   {
+        #     read_group => read_group
+        #     output     => cram
+        #     files      => [],
+        #   },
+        #   ...
+        # ]
+        #
+        # FIXME - this is probably still not right. needs more testing.
+
+        my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
+        my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+
+        if (exists $rg_map{$fastq->read_group}) {
+          push @{$targets[$rg_map{$fastq->read_group}]->{files}}, $fastq->path;
+        } else {
+          $targets[$rg_idx] = {
+            output     => $cram,
+            read_group => $fastq->read_group,
+            files      => [$fastq->path],
+          };
+
+          $rg_map{$fastq->read_group} = $rg_idx++;
+        }
+      }
+
+      $params->{fastq}->{targets} = \@targets;
+
+      my $makefile = File::Spec->join($sample_obj->result_path, 'Makefile.cloud-align');
+
+      $params->{fastq}->{count}    = $sample->fastqs->count;
+      $params->{fastq}->{makefile} = $makefile;
+
+      $logger->info("cloud-align makefile: $makefile") if $verbose;
+
+      unless (-e $makefile) {
+        $logger->debug("wrote cloud-align makefile to $makefile") if $debug;
+        $tt->process(q{cloud-align-makefile.tt2}, $params, $makefile) or die $tt->error();
+      }
+    } elsif ($step->name eq 'local-align') {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample') if $verbose;
+        next;
+      }
+
+      # TODO - going to do stack all the fastqs as tasks within a single job.
+      #        this makes life much simpler.
+    }
 
     $tt->process($step->name . q{.sh.tt2}, $params, $job_file) or die $tt->error();
 
@@ -308,8 +368,17 @@ sub execute {
 
     try {
       $job->submit($job_file);
+
       $logger->info('submitted job (' . $job->job_id . ') for sample ' . $sample_obj->sample_id) if $verbose;
-      $result->update({state_id => $schema->resultset('State')->find({name => 'submitted'})->id});
+
+      $result->add_to_results_states_steps(
+        {
+          state_id => $schema->resultset('State')->find({name => 'submitted'})->id,
+          step_id  => $step->id,
+          job_id   => $job_meta->id,
+        }
+      );
+
       $job_meta->update(
         {
           job_id       => $job->job_id(),
@@ -320,7 +389,7 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::BatchFileNotFound')) {
         $logger->error($_->description);
@@ -333,7 +402,7 @@ sub execute {
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::ProcessOutput')) {
         $logger->error($_->description);
-        $logger->debug($_->output) if $debug;
+        $logger->error($_->output);
 
       } else {
         if ($_->isa('Exception::Class')) {

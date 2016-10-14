@@ -27,7 +27,7 @@ use Exception::Class (
   __PACKAGE__ . '::Sample::SlotFailed' => {
     description => 'Failed to load the slot for this sample',
   },
-  __PACAKGE__ . '::Sample::FastqMismatch' => {
+  __PACKAGE__ . '::Sample::FastqMismatch' => {
     description => 'Sample ID from list file does not match sample_id',
   },
   __PACKAGE__ . '::Sample::FastqNotFound' => {
@@ -39,8 +39,13 @@ use Exception::Class (
   __PACKAGE__ . '::Sample::Fastq::MissingHeader' => {
     description => 'Fastq list line is missing a header field',
     fields      => [qw(header)],
+  },
+  __PACKAGE__ . '::Sample::InvalidStep' => {
+    description => 'Invalid step for sample availability',
+  },
+  __PACKAGE__ . '::Sample::Fastq::ListEmpty' => {
+    description => 'Fastq list file did not contain any fastqs',
   }
-
 );
 
 1;

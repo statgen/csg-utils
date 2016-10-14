@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `slots` (
   `created_at` DATETIME NOT NULL COMMENT '',
   `modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '',
   PRIMARY KEY (`id`)  COMMENT '',
-  UNIQUE INDEX `index3` (`name` ASC, `pool_id` ASC)  COMMENT '',
+  UNIQUE INDEX `index3` (`name` ASC)  COMMENT '',
   INDEX `slots_idx_pool_id` (`pool_id` ASC)  COMMENT '',
   CONSTRAINT `slots_fk_pool_id`
     FOREIGN KEY (`pool_id`)

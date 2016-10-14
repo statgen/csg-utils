@@ -1,0 +1,9 @@
+CRAMS: [% sample.result_path %]/*.cram
+
+all: $(CRAMS)
+
+[% FOREACH target IN fastq.targets -%]
+[% target.output %]: [% target.files.join(' ') %]
+	[% settings.project_dir %]/../bin/gce-align.sh "[% target.read_group %]" [% settings.out_dir %] [% target.files.join(' ') %]
+
+[% END -%]
