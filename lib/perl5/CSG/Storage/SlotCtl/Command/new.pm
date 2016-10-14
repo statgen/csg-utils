@@ -50,23 +50,23 @@ sub execute {
       $logger->error($_);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::DoesNotExist')) {
-      $logger->critical($_->error);
+      $logger->critical($_->as_string);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Slot::Parent::DoesNotExist')) {
-      $logger->critical($_->error);
+      $logger->critical($_->as_string);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Project::DoesNotExist')) {
-      $logger->critical($_->error);
+      $logger->critical($_->as_string);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Pool::DoesNotExist')) {
-      $logger->critical($_->error);
+      $logger->critical($_->as_string);
 
     } elsif ($_->isa('CSG::Storage::Slots::Exceptions::Pools::NoPoolAvailable')) {
-      $logger->critical($_->error);
+      $logger->critical($_->as_string);
 
     } else {
       if ($_->isa('Exception::Class')) {
-        $logger->error($_->error);
+        $logger->error($_->as_string);
       } else {
         $logger->error("something went sideways: $_");
       }
