@@ -31,8 +31,10 @@ then
     for f in $INPUT_FILES
     do
       echo "Uploading "$f" ..."
+      START_TIME=$(date +%s)
       gcloud compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
       EXIT_STATUS=$?
+      echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
       RETRY_COUNTER=0
       while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
@@ -77,9 +79,11 @@ then
         then
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
           echo "Downloading "$OUTPUT_FILE" ..."
+          START_TIME=$(date +%s)
           gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
           echo 'Download exit status: '$EXIT_STATUS
+          echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
           break
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
         then
