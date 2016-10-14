@@ -93,6 +93,11 @@ __PACKAGE__->table("jobs");
   default_value: 0
   is_nullable: 1
 
+=head2 tmp_dir
+
+  data_type: 'text'
+  is_nullable: 1
+
 =head2 submitted_at
 
   data_type: 'datetime'
@@ -147,6 +152,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 1, size => 45 },
   "delay",
   { data_type => "integer", default_value => 0, is_nullable => 1 },
+  "tmp_dir",
+  { data_type => "text", is_nullable => 1 },
   "submitted_at",
   {
     data_type => "datetime",
@@ -225,8 +232,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-13 08:12:57
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MgDSl+4PKgzsg4MG6/+/uA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-14 11:14:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MvsqeT49WVM+LUbaEHGYtg
 
 sub cancel {
   my ($self) = @_;
@@ -243,11 +250,13 @@ sub cancel {
 
 sub result {
   my ($self) = @_;
-  return $self->result_source->schema->resultset('ResultsStatesStep')->find(
+  my $status = $self->result_source->schema->resultset('ResultsStatesStep')->find(
     {
       id => {'=' =>  $self->results_states_steps->search()->get_column('id')->max()},
     }
-  )->result;
+  );
+
+  return ($status) ? $status->result : undef;
 }
 
 1;

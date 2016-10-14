@@ -193,6 +193,7 @@ sub execute {
         memory   => $memory,
         walltime => $walltime,
         delay    => $delay,
+        tmp_dir  => $tmp_dir,
       }
     );
 
@@ -306,6 +307,10 @@ sub execute {
     };
 
     if ($step->name eq 'cloud-align') {
+      if ($sample->fastqs->count) {
+        $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
+      }
+
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
         push @{$params->{fastq}->{indexes}}, $rg_idx;
