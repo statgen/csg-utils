@@ -68,9 +68,8 @@ sub execute {
     my $state = $self->{stash}->{state};
     my $step  = $self->{stash}->{step};
 
-    for my $result ($schema->resultset('Result')->search({build => $build})) {
-      next unless $result->current_state eq $state->name;
-      say $result->status_line();
+    for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
+      say $result->result->status_line();
     }
   }
 }
