@@ -6,7 +6,7 @@
 #SBATCH --mem=[% job.memory %]
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
-#SBATCH --partition=nomosix
+#SBATCH --partition=topmed
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
