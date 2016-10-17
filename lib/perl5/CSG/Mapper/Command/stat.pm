@@ -52,7 +52,7 @@ sub _totals {
   my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
-  my $table   = Text::ASCIITable->new();
+  my $table   = Text::ASCIITable->new({headingText => 'Total Samples: ' . $project->samples->count});
   my @columns = (qw(requested submitted started completed cancelled failed)); 
   $table->setCols(('Step', map {ucfirst($_)} @columns));
 
@@ -66,7 +66,6 @@ sub _totals {
   }
 
   $table->addRowLine();
-  $table->addRow('Total', '', $project->samples->count, '', '', '', '');
 
   print $table;
 }
