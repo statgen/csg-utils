@@ -12,6 +12,7 @@ requires 'Exception::Class';
 requires 'Module::Load';
 requires 'Number::Bytes::Human';
 requires 'IO::Prompter';
+requires 'Text::ASCIITable';
 
 requires 'Moose';
 requires 'MooseX::AbstractFactory';

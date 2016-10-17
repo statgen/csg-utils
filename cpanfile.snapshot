@@ -3681,6 +3681,16 @@ DISTRIBUTIONS
       Test::Builder::Tester 1.02
       Test::More 0
       perl 5.006
+  Text-ASCIITable-0.20
+    pathname: L/LU/LUNATIC/Text-ASCIITable-0.20.tar.gz
+    provides:
+      Text::ASCIITable 0.20
+      Text::ASCIITable::Wrap 0.2
+    requirements:
+      Carp 0
+      Encode 0
+      List::Util 0
+      perl v5.6.0
   Text-CSV_XS-1.23
     pathname: H/HM/HMBRAND/Text-CSV_XS-1.23.tgz
     provides:

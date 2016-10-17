@@ -4,12 +4,14 @@ use CSG::Mapper -command;
 use CSG::Base;
 use CSG::Mapper::DB;
 
+use Text::ASCIITable;
+
 sub opt_spec {
   return (
     ['job-id=s',  'job to provide stats for'],
     ['time-left', 'calculate time remaining in hours for a given jobid'],
     ['totals',    'various counts'],
-    ['step|s=s', 'step a result is in', {required => 1}],
+    ['step|s=s', 'step a result is in'],
   );
 }
 
@@ -29,7 +31,7 @@ sub execute {
   }
 
   if ($opts->{totals}) {
-    $self->_totals($opts->{step}, $self->app->global_options->{build});
+    $self->_totals($self->app->global_options->{build});
   }
 }
 
@@ -45,38 +47,28 @@ sub _time_left {
 }
 
 sub _totals {
-  my ($self, $step, $build) = @_;
+  my ($self, $build) = @_;
 
   my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
-  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step);
 
-  my $totals = {
-    total_samples => $project->samples->count,
-    completed     => 0,
-    failed        => 0,
-    started       => 0,
-    submitted     => 0,
-    cancelled     => 0,
-    requested     => 0,
-  };
+  my $table   = Text::ASCIITable->new();
+  my @columns = (qw(requested submitted started completed cancelled failed)); 
+  $table->setCols(('Step', map {ucfirst($_)} @columns));
 
-  for ($results->all) {
-    $totals->{$_->state->name}++;
+  for my $step ($schema->resultset('Step')->all) {
+    my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
+
+    my %totals = map {$_ => 0} @columns;
+    $totals{$_->state->name}++ for $results->all;
+
+    $table->addRow($step->name, @totals{@columns});
   }
 
-  print << "EOF"
-STEP: $step
-----------
-Requested:  $totals->{requested}
-Submitted:  $totals->{submitted}
-Running:    $totals->{started}
-Completed:  $totals->{completed}
-Cancelled:  $totals->{cancelled}
-Failed:     $totals->{failed}
-----------
-Total:      $totals->{total_samples}
-EOF
+  $table->addRowLine();
+  $table->addRow('Total', '', $project->samples->count, '', '', '', '');
+
+  print $table;
 }
 
 1;
