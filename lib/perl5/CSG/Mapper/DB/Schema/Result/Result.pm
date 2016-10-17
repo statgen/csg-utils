@@ -176,7 +176,7 @@ sub status_line {
   my ($self) = @_;
 
   return sprintf
-    q{ID: %-8s center: %-10s study: %-10s PI: %-15s Status: %-10s },
+    q{ID: %-10.10s CENTER: %-10.10s STUDY: %-10.10s PI: %-10.10s STATUS: %-10.10s},
     $self->sample->sample_id,
     $self->sample->center->name,
     $self->sample->study->name,
