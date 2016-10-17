@@ -311,13 +311,17 @@ sub execute {
         $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
       }
 
+      my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
+      my $running = scalar map {$_ if $_->state->name =~ /submitted|started/} $results->all();
+
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
         push @{$params->{fastq}->{indexes}}, $rg_idx;
 
         my $rg_ref = {
           name  => $read_group,
-          index => $rg_idx++,
+          index => $rg_idx,
+          delay => int(rand($running)) + $rg_idx,
         };
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group})) {
@@ -327,6 +331,7 @@ sub execute {
           $rg_ref->{files}->{$fastq->path} = $cram;
         }
 
+        $rg_idx++;
         push @{$params->{fastq}->{read_groups}}, $rg_ref;
       }
 
