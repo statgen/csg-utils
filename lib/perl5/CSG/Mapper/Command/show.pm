@@ -10,12 +10,14 @@ my $schema = CSG::Mapper::DB->new();
 
 sub opt_spec {
   return (
+    ['info',          'combined output of job and sample(for backward compatiblity)'],    # TODO - remove after old jobs clear queue
+    ['meta-id=i',     'job id for the meta data record (for backward compatibility)'],    # TODO - remove after old jobs clear queue
     ['job-info=i',    'display basic job info'],
     ['sample-info=s', 'display all info on a given sample'],
     ['result-info=s', 'display sample and result info for a given sample id'],
     ['step=s',        'display results for a given step (e.g. bam2fastq, align)'],
-    ['state=s',       'display results for a given state (e.g. submitted, requested, failed)'],
-    ['stale',         'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
+    ['state=s', 'display results for a given state (e.g. submitted, requested, failed)'],
+    ['stale',   'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -55,9 +57,17 @@ sub validate_args {
 sub execute {
   my ($self, $opts, $args) = @_;
 
+  if ($opts->{info}) {
+    my $job = $schema->resultset('Job')->find($opts->{meta_id});
+    $self->_dump($opts->{format}, $self->_job_info($job));
+
+    my $sample = $job->result->sample;
+    $self->_dump($opts->{format}, $self->_sample_info($sample));
+  }
+
   if ($opts->{job_info}) {
     my $job  = $schema->resultset('Job')->find($opts->{job_info});
-    my $info = $self->_info($job);
+    my $info = $self->_job_info($job);
 
     $self->_dump($opts->{format}, $info);
   }
@@ -114,19 +124,19 @@ sub _sample_info {
   my $result = $sample->result_for_build($self->app->global_options->{build});
   return {
     sample => {
-      id        => $sample->id,
-      sample_id => $sample->sample_id,
-      center    => $sample->center->name,
-      study     => $sample->study->name,
-      pi        => $sample->pi->name,
-      host      => $sample->host->name,
-      filename  => $sample->filename,
-      run_dir   => $sample->run_dir,
-      fullpath  => $sample->fullpath,
-      state     => $result->current_state,
-      step      => $result->current_step,
-      build     => $result->build,
-      fastqs    => [map +{read_group => $_->read_group, path => $_->path}, $sample->fastqs],
+      id            => $sample->id,
+      sample_id     => $sample->sample_id,
+      center        => $sample->center->name,
+      study         => $sample->study->name,
+      pi            => $sample->pi->name,
+      host          => $sample->host->name,
+      filename      => $sample->filename,
+      run_dir       => $sample->run_dir,
+      fullpath      => $sample->fullpath,
+      current_state => $result->current_state,
+      current_step  => $result->current_step,
+      build         => $result->build,
+      fastqs        => [map +{read_group => $_->read_group, path => $_->path}, $sample->fastqs],
     }
   };
 }
@@ -155,7 +165,7 @@ sub _job_info {
     job => {
       id        => $job->id,
       job_id    => $job->job_id,
-      result_id => $job->result_id,
+      result_id => $job->result->id,
       cluster   => $job->cluster,
       procs     => $job->procs,
       memory    => $job->memory,
@@ -164,6 +174,7 @@ sub _job_info {
       delay     => $job->delay,
       tmp_dir   => $job->tmp_dir,
       submitted => ($job->submitted_at) ? $job->submitted_at->ymd . $SPACE . $job->submitted_at->hms : $EMPTY,
+      started   => ($job->started_at) ? $job->started_at->ymd . $SPACE . $job->started_at->hms : $EMPTY,
       created   => $job->created_at->ymd . $SPACE . $job->created_at->hms,
     }
   };
