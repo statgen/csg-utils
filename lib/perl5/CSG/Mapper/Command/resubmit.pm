@@ -10,10 +10,10 @@ use CSG::Mapper::Sample;
 
 sub opt_spec {
   return (
-    ['sample-id|s=s', 'Sample ID to resubmit (e.g. NWD12345)'],
-    ['failed|f',      'Resubmit all failed jobs'],
-    ['do-not-purge',  'Prevent the deletion of OUT_DIR'],
-    ['step=s',        'Job step to resubmit (e.g. bam2fastq, cloud-align)', {required => 1}],
+    ['sample|s=s',   'Sample ID to resubmit (e.g. NWD12345)'],
+    ['failed|f',     'Resubmit all failed jobs'],
+    ['do-not-purge', 'Prevent the deletion of OUT_DIR'],
+    ['step=s',       'Job step to resubmit (e.g. bam2fastq, cloud-align)', {required => 1}],
   );
 }
 
@@ -33,8 +33,8 @@ sub execute {
     exit 1;
   }
 
-  if ($opts->{sample_id}) {
-    push @samples, $schema->resultset('Sample')->find({sample_id => $opts->{sample_id}})->id;
+  if ($opts->{sample}) {
+    push @samples, $schema->resultset('Sample')->find({sample_id => $opts->{sample}})->id;
   } elsif ($opts->{failed}) {
     my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $opts->{step}, 'failed');
     @samples = map {$_->result->sample->id} $results->all();
