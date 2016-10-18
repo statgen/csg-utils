@@ -125,7 +125,7 @@ sub execute {
 
     if ($step->name =~ /(?:cloud|local)\-align/) {
       unless ($sample->fastqs->count) {
-        $logger->info('no fastq files recorded for sample ' . $sample->sample_id) if $verbose;
+        $logger->debug('no fastq files recorded for sample ' . $sample->sample_id) if $debug;
         next;
       }
     }
