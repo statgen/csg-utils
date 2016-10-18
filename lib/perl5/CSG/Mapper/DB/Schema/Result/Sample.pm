@@ -291,17 +291,9 @@ sub has_fastqs {
   return $self->search_related('fastqs')->search({path => $fastq})->count;
 }
 
-sub results_for_step_build {
-  my ($self, $step, $build) = @_;
-  return $self->resutls->search(
-    {
-      'me.build'  => $build,
-      'step.name' => $step,
-    },
-    {
-      join => {results_states_steps => 'step'},
-    }
-  );
+sub result_for_build {
+  my ($self, $build) = @_;
+  return $self->results->find({build => $build});
 }
 
 sub current_state {
