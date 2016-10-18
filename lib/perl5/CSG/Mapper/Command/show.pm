@@ -141,6 +141,7 @@ sub _sample_info {
       run_dir       => $sample->run_dir,
       fullpath      => $sample->fullpath,
       out_dir       => $sample_obj->result_path,
+      run_dir       => $sample_obj->state_dir,
       current_state => $result->current_state,
       current_step  => $result->current_step,
       build         => $result->build,
