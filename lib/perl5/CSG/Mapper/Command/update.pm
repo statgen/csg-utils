@@ -170,16 +170,16 @@ sub execute {
     my $fastq_rs = $meta->result->sample->fastqs->search({path => $opts->{fastq_complete}});
 
     if ($fastq_rs->count > 1) {
-      $logger->info('found multiple records for fastq');
-      croak 'Found multiple fastq files when there should only be one';
+      $logger->critical('Found multiple fastq files when there should only be one');
+      exit 1;
     }
 
     my $fastq = $fastq_rs->first;
     my $file  = basename($fastq->path);
 
     unless (-e $fastq->path) {
-      $logger->info("fastq[$file] does not exist on disk");
-      croak "unable to locate fastq[$file] on disk";
+      $logger->critical("unable to locate fastq[$file] on disk");
+      exit 1;
     }
 
     $logger->info("removing fastq[$file] from disk");
@@ -193,20 +193,24 @@ sub execute {
     my $dir = $opts->{bam2fastq_cleanup};
 
     unless (-e $dir) {
-      croak "bam2fastq directory, $dir, does not exist";
+      $logger->critical("bam2fastq directory, $dir, does not exist");
+      exit 1;
     }
 
     unless ($meta->tmp_dir) {
-      croak 'no tmp_dir recorded for this job';
+      $logger->critical('no tmp_dir recorded for this job');
+      exit 1;
     }
 
     if ($meta->tmp_dir ne $dir) {
-      croak "temp directory, $dir, does not belong to this job";
+      $logger->critical("temp directory, $dir, does not belong to this job");
+      exit 1;
     }
 
     my $files_cnt = (Path::Tiny::path($dir)->children);
     if ($files_cnt > 2) {
-      croak "found more files than expected in tmp_dir[$dir]";
+      $logger->critical("found more files than expected in tmp_dir[$dir]");
+      exit 1;
     }
 
     $logger->info("deleting $files_cnt files from bam2fastq directory from $dir");

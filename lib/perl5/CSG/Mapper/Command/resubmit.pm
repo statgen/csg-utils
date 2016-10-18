@@ -29,7 +29,8 @@ sub execute {
   my $step    = $schema->resultset('Step')->find({name => $opts->{step}});
 
   unless ($step) {
-    croak "Step, $opts->{step}, is not valid";
+    $logger->critical("Step, $opts->{step}, is not valid");
+    exit 1;
   }
 
   if ($opts->{sample_id}) {
@@ -43,7 +44,8 @@ sub execute {
     my $result = $schema->resultset('Result')->find({build => $build, sample_id => $sample});
 
     unless ($result) {
-      croak "No result found for sample[$sample] in build[$build]";
+      $logger->critical("No result found for sample[$sample] in build[$build]");
+      exit 1;
     }
 
     $result->add_to_results_states_steps({

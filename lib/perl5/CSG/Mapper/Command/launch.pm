@@ -240,19 +240,22 @@ sub execute {
       File::Spec->join($project_dir, $config->get('gotcloud', 'gotcloud_conf') . $PERIOD . $sample_obj->build_str);
     $logger->debug("gotcloud conf: $gotcloud_conf") if $debug;
     unless (-e $gotcloud_conf) {
-      croak qq{Unable to locate GOTCLOUD_CONF [$gotcloud_conf]};
+      $logger->critical(qq{Unable to locate GOTCLOUD_CONF [$gotcloud_conf]});
+      exit 1;
     }
 
     my $gotcloud_root = File::Spec->join($basedir, $config->get($cluster, 'gotcloud_root'));
     $logger->debug("gotcloud root: $gotcloud_root") if $debug;
     unless (-e $gotcloud_root) {
-      croak qq{GOTCLOUD_ROOT [$gotcloud_root] does not exist!};
+      $logger->critical(qq{GOTCLOUD_ROOT [$gotcloud_root] does not exist!});
+      exit 1;
     }
 
     my $gotcloud_ref = File::Spec->join($prefix, $config->get('gotcloud', qq{build${build}_ref_dir}));
     $logger->debug("gotcloud ref_dir: $gotcloud_ref") if $debug;
     unless (-e $gotcloud_ref) {
-      croak qq{GOTCLOUD_REF_DIR [$gotcloud_ref] does not exist!};
+      $logger->critical(qq{GOTCLOUD_REF_DIR [$gotcloud_ref] does not exist!});
+      exit 1;
     }
 
     my $job_file =
