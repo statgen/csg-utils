@@ -5,6 +5,7 @@ use CSG::Base qw(formats);
 use CSG::Constants;
 use CSG::Mapper::DB;
 use CSG::Mapper::Job;
+use CSG::Mapper::Sample;
 
 my $schema = CSG::Mapper::DB->new();
 
@@ -121,7 +122,13 @@ sub _dump {
 sub _sample_info {
   my ($self, $sample) = @_;
 
-  my $result = $sample->result_for_build($self->app->global_options->{build});
+  my $result     = $sample->result_for_build($self->app->global_options->{build});
+  my $sample_obj = CSG::Mapper::Sample->new(
+    cluster => $self->app->global_options->{cluster},
+    record  => $sample,
+    build   => $result->build,
+  );
+
   return {
     sample => {
       id            => $sample->id,
@@ -133,6 +140,7 @@ sub _sample_info {
       filename      => $sample->filename,
       run_dir       => $sample->run_dir,
       fullpath      => $sample->fullpath,
+      out_dir       => $sample_obj->result_path,
       current_state => $result->current_state,
       current_step  => $result->current_step,
       build         => $result->build,

@@ -10,10 +10,10 @@ use CSG::Mapper::Sample;
 
 sub opt_spec {
   return (
-    ['sample|s=s',   'Sample ID to resubmit (e.g. NWD12345)'],
-    ['failed|f',     'Resubmit all failed jobs'],
-    ['do-not-purge', 'Prevent the deletion of OUT_DIR'],
-    ['step=s',       'Job step to resubmit (e.g. bam2fastq, cloud-align)', {required => 1}],
+    ['sample|s=s', 'Sample ID to resubmit (e.g. NWD12345)'],
+    ['failed|f',   'Resubmit all failed jobs'],
+    ['purge',      'Purge OUT_DIR'],
+    ['step=s',     'Job step to resubmit (e.g. bam2fastq, cloud-align)', {required => 1}],
   );
 }
 
@@ -63,7 +63,7 @@ sub execute {
 
     $logger->debug("SAMPLE[$sample] OUT_DIR: " . $sample_obj->result_path) if $debug;
 
-    unless ($opts->{do_not_purge}) {
+    if ($opts->{purge}) {
       if (-e $sample_obj->result_path) {
         $logger->info("removing existing OUT_DIR for sample[$sample]");
         remove_tree($sample_obj->result_path);
