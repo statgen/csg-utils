@@ -175,6 +175,7 @@ sub _job_info {
       id        => $job->id,
       job_id    => $job->job_id,
       result_id => $job->result->id,
+      sample    => $job->result->sample->sample_id,
       cluster   => $job->cluster,
       procs     => $job->procs,
       memory    => $job->memory,
