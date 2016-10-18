@@ -54,7 +54,8 @@ if [ ! -e $OUT_DIR ]; then
   exit 1
 fi
 
-$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %]
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %]
 $MAPPER_LOG_CMD --message 'begining gotcloud alignment'
 
 export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s

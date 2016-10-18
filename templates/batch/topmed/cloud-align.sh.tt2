@@ -43,6 +43,9 @@ MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step cloud-align"
 $MAPPER_LOG_CMD --message 'sending fastq to the cloud'
 $MAPPER_UPDATE_CMD --start --step cloud-align
 
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
+
 # TODO - introduce a delay into the makefile at each target to avoid quota problems
 make -j [% fastq.indexes.last + 1 %] -f [% fastq.makefile %]
 

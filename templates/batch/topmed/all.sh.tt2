@@ -112,7 +112,9 @@ echo "[% sample.sample_id %] [% sample.incoming_path %]" > "${TMP_DIR}/bam.list"
 $MAPPER_LOG_CMD --message "delaying execution for [% settings.delay %] minutes"
 sleep "[% settings.delay %]m"
 
-$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
+
 $MAPPER_LOG_CMD --message 'beginning [% settings.pipeline %] pipeline'
 
 [% gotcloud.cmd %] pipe \
