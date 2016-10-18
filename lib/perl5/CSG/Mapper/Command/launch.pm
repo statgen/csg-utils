@@ -309,6 +309,7 @@ sub execute {
     if ($step->name eq 'cloud-align') {
       if ($sample->fastqs->count) {
         $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
+        $job_meta->update({tmp_dir => $params->{job}->{tmp_dir}});
       }
 
       my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
