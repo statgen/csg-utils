@@ -19,6 +19,7 @@ sub opt_spec {
     ['step=s',        'display results for a given step (e.g. bam2fastq, align)'],
     ['state=s', 'display results for a given state (e.g. submitted, requested, failed)'],
     ['stale',   'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
+    ['job-logs=s',    'display job logs for sample'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -91,6 +92,10 @@ sub execute {
 
   if ($opts->{stale}) {
     return $self->_stale();
+  }
+
+  if ($opts->{job_logs}) {
+    return $self->_job_logs($opts->{job_logs});
   }
 
   if ($opts->{state}) {
@@ -210,6 +215,25 @@ sub _stale {
     my $job_state = $job->state;
     next if $job_state eq 'running';
     say $result->result->status_line . 'JOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
+  }
+}
+
+sub _job_logs {
+  my ($self, $sample_id) = @_;
+  my $sample = $schema->resultset('Sample')->find({sample_id => $sample_id});
+  unless ($sample) {
+    say "invalid sample id $sample_id";
+    exit 1;
+  }
+
+  my $logs = $sample->logs($self->app->global_options->{build});
+
+  for my $step (keys %{$logs}) {
+    for my $job (keys %{$logs->{$step}}) {
+      # [timestamp] [step:jobid] [LEVEL] message
+      printf "[%s] [%s:%d] [%s] %s\n",
+        $_->{timestamp}, $step, $job, uc($_->{level}), $_->{msg} for @{$logs->{$step}->{$job}};
+    }
   }
 }
 

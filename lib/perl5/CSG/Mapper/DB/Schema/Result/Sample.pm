@@ -326,4 +326,28 @@ sub is_available {
 sub read_groups {
   return map {$_->read_group} shift->fastqs->search({}, {group_by => 'read_group'});
 }
+
+sub logs {
+  my ($self, $build) = @_;
+
+  my $logs    = {};
+  my $results = $self->result_for_build($build)->results_states_steps->search(
+    {},
+    {
+      group_by => 'job_id',
+      order_by => 'id desc'
+    }
+  );
+
+  for my $result ($results->all) {
+    push @{$logs->{$result->step->name}->{$result->job_id}}, map +{
+      level     => $_->level,
+      msg       => $_->message,
+      timestamp => $_->timestamp->strftime('%x %X'),
+    }, $result->job->logs->search({}, {order_by => 'id asc'});
+  }
+
+  return $logs;
+}
+
 1;
