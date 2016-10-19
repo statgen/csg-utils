@@ -93,7 +93,7 @@ sub _avg_job {
     $time += $duration->in_units('hours');
   }
 
-  printf "Average job run time for %s is: %.2f\n", $step, ($time / $results->count);
+  printf "Average job run time for %s is: %.2f hrs\n", $step, ($time / $results->count);
 }
 
 1;
