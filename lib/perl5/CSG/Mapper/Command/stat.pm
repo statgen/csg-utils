@@ -6,12 +6,15 @@ use CSG::Mapper::DB;
 
 use Text::ASCIITable;
 
+my $schema  = CSG::Mapper::DB->new();
+
 sub opt_spec {
   return (
-    ['job-id=s',  'job to provide stats for'],
-    ['time-left', 'calculate time remaining in hours for a given jobid'],
-    ['totals',    'various counts'],
-    ['step|s=s', 'step a result is in'],
+    ['job-id=s',       'job to provide stats for'],
+    ['time-left',      'calculate time remaining in hours for a given jobid'],
+    ['totals',         'various counts'],
+    ['step|s=s',       'step a result is in'],
+    ['avg-job-time=s', 'average job run time for a given step']
   );
 }
 
@@ -33,6 +36,10 @@ sub execute {
   if ($opts->{totals}) {
     $self->_totals($self->app->global_options->{build});
   }
+
+  if ($opts->{avg_job_time}) {
+    $self->_avg_job($opts->{avg_job_time});
+  }
 }
 
 sub _time_left {
@@ -49,7 +56,6 @@ sub _time_left {
 sub _totals {
   my ($self, $build) = @_;
 
-  my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
   my $table   = Text::ASCIITable->new({headingText => 'Total Samples: ' . $project->samples->count});
@@ -68,6 +74,26 @@ sub _totals {
   $table->addRowLine();
 
   print $table;
+}
+
+sub _avg_job {
+  my ($self, $step) = @_;
+
+  my $time    = 0;
+  my $build   = $self->app->global_options->{build};
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step, 'completed');
+
+  for my $result ($results->all) {
+    my $started  = $result->job->started_at;
+    my $ended    = $result->job->ended_at;
+
+    next unless $started and $ended;
+    my $duration = $ended - $started;
+
+    $time += $duration->in_units('hours');
+  }
+
+  printf "Average job run time for %s is: %.2f\n", $step, ($time / $results->count);
 }
 
 1;
