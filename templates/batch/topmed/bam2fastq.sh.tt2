@@ -12,6 +12,7 @@
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
 #SBATCH --nodes=1-1
+#SBATCH --exclude=[% job.exclude_nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST

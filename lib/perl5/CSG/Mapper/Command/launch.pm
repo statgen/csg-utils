@@ -275,6 +275,7 @@ sub execute {
       workdir => $log_dir,
       job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
       nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
+      exclude_nodelist => join($COMMA, map{$_->name} $schema->resultset('Host')->search({name => {'!=' => 'csgspare'}})),
     };
 
     if ($params->{job}->{nodelist} eq 'csgspare') {
@@ -313,6 +314,12 @@ sub execute {
       if ($sample->fastqs->count) {
         $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
         $job_meta->update({tmp_dir => $params->{job}->{tmp_dir}});
+
+        my $path  = Path::Class->file($params->{job}->{tmp_dir});
+        my @comps = $path->components();
+        my $idx   = ($cluster eq 'csg') ? 3 : 4;
+
+        $params->{job}->{nodelist} = $comps[$idx];
       }
 
       my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
