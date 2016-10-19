@@ -220,20 +220,16 @@ sub _stale {
 
 sub _job_logs {
   my ($self, $sample_id) = @_;
+  my $build  = $self->app->global_options->{build};
   my $sample = $schema->resultset('Sample')->find({sample_id => $sample_id});
+
   unless ($sample) {
     say "invalid sample id $sample_id";
     exit 1;
   }
 
-  my $logs = $sample->logs($self->app->global_options->{build});
-
-  for my $step (keys %{$logs}) {
-    for my $job (keys %{$logs->{$step}}) {
-      # [timestamp] [step:jobid] [LEVEL] message
-      printf "[%s] [%s:%d] [%s] %s\n",
-        $_->{timestamp}, $step, $job, uc($_->{level}), $_->{msg} for @{$logs->{$step}->{$job}};
-    }
+  for my $log ($sample->logs($build)) {
+    say "[$log->{timestamp}] [$log->{step}:$log->{job_id}] [$log->{level}] $log->{message}";
   }
 }
 

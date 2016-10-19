@@ -327,10 +327,9 @@ sub read_groups {
   return map {$_->read_group} shift->fastqs->search({}, {group_by => 'read_group'});
 }
 
-sub logs {
+sub jobs_for_build {
   my ($self, $build) = @_;
 
-  my $logs    = {};
   my $results = $self->result_for_build($build)->results_states_steps->search(
     {},
     {
@@ -339,15 +338,34 @@ sub logs {
     }
   );
 
-  for my $result ($results->all) {
-    push @{$logs->{$result->step->name}->{$result->job_id}}, map +{
-      level     => $_->level,
-      msg       => $_->message,
+  return $self->result_source->schema->resultset('Job')->search(
+    {
+      id => {'=' => [map {$_->job_id} $results->all]},
+    },
+    {
+      order_by => 'id asc',
+    }
+  );
+}
+
+sub logs {
+  my ($self, $build) = @_;
+
+  my @logs = ();
+  for my $job ($self->jobs_for_build($build)) {
+    my $step   = $job->results_states_steps->first->step->name;
+    my $job_id = $job->job_id;
+
+    push @logs, map +{
+      job_id    => $job_id,
+      step      => $step,
+      level     => uc($_->level),
+      message   => $_->message,
       timestamp => $_->timestamp->strftime('%x %X'),
-    }, $result->job->logs->search({}, {order_by => 'id asc'});
+    }, $job->logs;
   }
 
-  return $logs;
+  return wantarray ? @logs : \@logs;
 }
 
 1;
