@@ -59,14 +59,14 @@ sub _totals {
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
   my $table   = Text::ASCIITable->new({headingText => 'Total Samples: ' . $project->samples->count});
-  my @columns = (qw(requested submitted started completed cancelled failed)); 
+  my @columns = (qw(requested submitted started completed cancelled failed));
   $table->setCols(('Step', map {ucfirst($_)} @columns));
 
   for my $step ($schema->resultset('Step')->all) {
-    my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
-
     my %totals = map {$_ => 0} @columns;
-    $totals{$_->state->name}++ for $results->all;
+    for my $col (@columns) {
+      $totals{$col} = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $col)->count;
+    }
 
     $table->addRow($step->name, @totals{@columns});
   }
@@ -74,6 +74,8 @@ sub _totals {
   $table->addRowLine();
 
   print $table;
+
+  return;
 }
 
 sub _avg_job {
