@@ -83,6 +83,11 @@ sub _avg_job {
   my $build   = $self->app->global_options->{build};
   my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step, 'completed');
 
+  unless ($results->count) {
+    say "No results found for $step";
+    return;
+  }
+
   for my $result ($results->all) {
     my $started  = $result->job->started_at;
     my $ended    = $result->job->ended_at;
