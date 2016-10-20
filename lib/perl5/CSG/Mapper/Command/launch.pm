@@ -351,7 +351,7 @@ sub execute {
       $params->{fastq}->{count}    = $sample->fastqs->count;
       $params->{fastq}->{makefile} = $makefile;
 
-      $logger->info("cloud-align makefile: $makefile") if $verbose;
+      $logger->debug("cloud-align makefile: $makefile") if $debug;
 
       unless (-e $makefile) {
         $logger->debug("wrote cloud-align makefile to $makefile") if $debug;
