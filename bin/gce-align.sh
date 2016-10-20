@@ -1,4 +1,8 @@
 #!/bin/bash
+SAMPLE_ID=$1
+shift
+RG_IDENT=$1
+shift
 RG_LINE=$1
 shift
 OUTPUT_DIR=$1
@@ -7,7 +11,7 @@ INPUT_FILES=$@
 
 set -o pipefail
 
-MACHINE_NAME="align-"$(head -c16 /dev/urandom | xxd -p | tr -d \\n)
+MACHINE_NAME="align-${SAMPLE_ID}-${RG_IDENT}"
 MACHINE_TAG=$(basename $1 .fastq.gz | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | head -c62)
 MACHINE_TYPE_OPTS="--custom-cpu 32 --custom-memory 64GiB"
 #MACHINE_TYPE_OPTS="--machine-type  n1-standard-32"
