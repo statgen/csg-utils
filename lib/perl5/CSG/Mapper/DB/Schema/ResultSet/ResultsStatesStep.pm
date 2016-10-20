@@ -24,18 +24,25 @@ sub current_results_by_step_state {
   my ($self, $build, $step, $state) = @_;
 
   return $self->search(
+    {},
     {
-      'step.name'    => $step,
-      'state.name'   => $state,
-      'result.build' => $build,
-    },
-    {
-      join     => [qw(result step state)],
       order_by => 'created_at desc',
     }
-  )->as_subselect_rs->search({}, {
-      group_by => 'result_id'
-  });
+  )->as_subselect_rs->search(
+    {},
+    {
+      group_by => 'me.result_id',
+    }
+  )->as_subselect_rs->search(
+    {
+      'result.build' => $build,
+      'state.name'   => $state,
+      'step.name'    => $step,
+    },
+    {
+      join => [qw(result step state)],
+    }
+  );
 }
 
 sub current_state_for_result {

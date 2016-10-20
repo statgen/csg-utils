@@ -104,8 +104,7 @@ sub execute {
     my $step  = $self->{stash}->{step};
 
     for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
-      next if $result->result->current_state ne $state->name;
-      say $result->result->status_line();
+     say $result->result->status_line();
     }
   }
 }

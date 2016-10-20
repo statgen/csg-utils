@@ -53,17 +53,17 @@ sub execute {
         step_id  => $step->id,
     });
 
-    $logger->info("marked sample[$sample] for remapping");
-
-    my $sample_obj = CSG::Mapper::Sample->new(
-      cluster => $self->app->global_options->{cluster},
-      record  => $result->sample,
-      build   => $build,
-    );
-
-    $logger->debug("SAMPLE[$sample] OUT_DIR: " . $sample_obj->result_path) if $debug;
+    $logger->info('marked sample[' . $result->sample->sample_id . "] for reprocessing of step $opts->{step}");
 
     if ($opts->{purge}) {
+      my $sample_obj = CSG::Mapper::Sample->new(
+        cluster => $self->app->global_options->{cluster},
+        record  => $result->sample,
+        build   => $build,
+      );
+
+      $logger->debug("SAMPLE[$sample] OUT_DIR: " . $sample_obj->result_path) if $debug;
+
       if (-e $sample_obj->result_path) {
         $logger->info("removing existing OUT_DIR for sample[$sample]");
         remove_tree($sample_obj->result_path);
