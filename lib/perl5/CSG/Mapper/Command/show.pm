@@ -139,8 +139,9 @@ sub _dump {
 }
 
 sub _sample_info {
-  my ($self, $sample) = @_;
+  my ($self) = @_;
 
+  my $sample     = $self->{stash}->{sample};
   my $result     = $sample->result_for_build($self->app->global_options->{build});
   my $sample_obj = CSG::Mapper::Sample->new(
     cluster => $self->app->global_options->{cluster},
@@ -251,6 +252,11 @@ sub _job_logs {
   my $sample  = $self->{stash}->{sample};
   my $step    = $self->{stash}->{step};
 
+  unless ($step) {
+    say 'step is requried';
+    exit 1;
+  }
+
   my $sample_obj = CSG::Mapper::Sample->new(
     cluster => $cluster,
     record  => $sample,
@@ -267,6 +273,7 @@ sub _job_logs {
     exit 1;
   }
 
+  # TODO - get 
   my $result = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
   unless ($result->count) {
     say 'no results for ' . $sample->sample_id . ' at step ' . $step->name;
@@ -278,7 +285,7 @@ sub _job_logs {
   my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
 
   unless (-e $log_file) {
-    say 'no scheduler logs found';
+    say "scheduler log file, $log_file, does not exist";
     exit 1;
   }
 
