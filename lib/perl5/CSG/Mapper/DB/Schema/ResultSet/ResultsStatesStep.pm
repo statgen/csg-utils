@@ -61,4 +61,23 @@ sub current_state_for_result {
   });
 }
 
+sub running_by_step {
+  my ($self, $build, $step) = @_;
+
+  return $self->search(
+    {
+      'step.name'    => $step,
+      'result.build' => $build,
+      'state.name'   => {'=' => [qw(submitted started)]},
+    },
+    {
+      join     => [qw(result step state)],
+      order_by => 'created_at desc',
+    }
+  )->as_subselect_rs->search({}, {
+      group_by => 'result_id'
+  });
+
+}
+
 1;

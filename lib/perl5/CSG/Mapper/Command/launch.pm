@@ -322,8 +322,16 @@ sub execute {
         $params->{job}->{nodelist} = $comps[$idx];
       }
 
-      my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
-      my $running = scalar map {$_ if $_->state->name =~ /submitted|started/} $results->all();
+=cut
+      my $running_rs  = $schema->resultset('ResultsStatesStep')->running_by_step($build, $step->name);
+      my $running_cnt = $running_rs->count;
+
+      my $rg_cnt  = 0;
+      $rg_cnt    += scalar $_->result->sample->read_groups for $running_rs->all();
+
+      $logger->debug("running samples: " . $running_cnt) if $debug;
+      $logger->debug("read groups: $rg_cnt") if $debug;
+=cut
 
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
@@ -332,7 +340,7 @@ sub execute {
         my $rg_ref = {
           name  => $read_group,
           index => $rg_idx,
-          delay => int(rand($running)) + $rg_idx,
+          delay => 0, # int(rand($running_cnt + $rg_idx + $rg_cnt)),
         };
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group})) {
