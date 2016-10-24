@@ -1,7 +1,7 @@
 package CSG::Mapper::Command::show;
 
 use CSG::Mapper -command;
-use CSG::Base qw(formats);
+use CSG::Base qw(formats file);
 use CSG::Constants;
 use CSG::Mapper::DB;
 use CSG::Mapper::Job;
@@ -17,9 +17,10 @@ sub opt_spec {
     ['sample-info=s', 'display all info on a given sample'],
     ['result-info=s', 'display sample and result info for a given sample id'],
     ['step=s',        'display results for a given step (e.g. bam2fastq, align)'],
-    ['state=s', 'display results for a given state (e.g. submitted, requested, failed)'],
-    ['stale',   'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
-    ['job-logs=s',    'display job logs for sample'],
+    ['state=s',       'display results for a given state (e.g. submitted, requested, failed)'],
+    ['stale',         'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
+    ['logs=s',        'display mapper logs for a sample'],
+    ['job-logs=s',    'display scheduler most recent job logs for sample (i.e. STDOUT/STDERR of a running job)'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -54,6 +55,20 @@ sub validate_args {
 
     $self->{stash}->{step} = $step;
   }
+
+  for (qw(sample_info result_info logs job_logs)) {
+    if (exists $opts->{$_}) {
+      my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{$_}});
+
+      unless ($sample) {
+        say "invalid sample id $opts->{$_}";
+        exit 1;
+      }
+
+      $self->{stash}->{sample} = $sample;
+      last;
+    }
+  }
 }
 
 sub execute {
@@ -63,8 +78,8 @@ sub execute {
     my $job = $schema->resultset('Job')->find($opts->{meta_id});
     $self->_dump($opts->{format}, $self->_job_info($job));
 
-    my $sample = $job->result->sample;
-    $self->_dump($opts->{format}, $self->_sample_info($sample));
+    $self->{stash}->{sample} = $job->result->sample;
+    $self->_dump($opts->{format}, $self->_sample_info());
   }
 
   if ($opts->{job_info}) {
@@ -75,18 +90,13 @@ sub execute {
   }
 
   if ($opts->{sample_info}) {
-    my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{sample_info}});
-    my $info = $self->_sample_info($sample);
-
+    my $info = $self->_sample_info();
     $self->_dump($opts->{format}, $info);
   }
 
   if ($opts->{result_info}) {
-    my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{result_info}});
-
-    my $info = $self->_sample_info($sample);
-    $info->{sample}->{results} = $self->_result_info($sample);
-
+    my $info = $self->_sample_info();
+    $info->{sample}->{results} = $self->_result_info();
     $self->_dump($opts->{format}, $info);
   }
 
@@ -94,8 +104,12 @@ sub execute {
     return $self->_stale();
   }
 
+  if ($opts->{logs}) {
+    return $self->_logs();
+  }
+
   if ($opts->{job_logs}) {
-    return $self->_job_logs($opts->{job_logs});
+    return $self->_job_logs();
   }
 
   if ($opts->{state}) {
@@ -156,9 +170,10 @@ sub _sample_info {
 }
 
 sub _result_info {
-  my ($self, $sample) = @_;
+  my ($self) = @_;
 
   my @results = ();
+  my $sample  = $self->{stash}->{sample};
   my $result  = $sample->result_for_build($self->app->global_options->{build});
 
   for ($result->results_states_steps->all) {
@@ -218,19 +233,58 @@ sub _stale {
   }
 }
 
-sub _job_logs {
-  my ($self, $sample_id) = @_;
+sub _logs {
+  my ($self) = @_;
   my $build  = $self->app->global_options->{build};
-  my $sample = $schema->resultset('Sample')->find({sample_id => $sample_id});
-
-  unless ($sample) {
-    say "invalid sample id $sample_id";
-    exit 1;
-  }
+  my $sample = $self->{stash}->{sample};
 
   for my $log ($sample->logs($build)) {
     say "[$log->{timestamp}] [$log->{step}:$log->{job_id}] [$log->{level}] $log->{message}";
   }
+}
+
+sub _job_logs {
+  my ($self) = @_;
+
+  my $build   = $self->app->global_options->{build};
+  my $cluster = $self->app->global_options->{cluster};
+  my $sample  = $self->{stash}->{sample};
+  my $step    = $self->{stash}->{step};
+
+  my $sample_obj = CSG::Mapper::Sample->new(
+    cluster => $cluster,
+    record  => $sample,
+    build   => $build,
+  );
+
+  my $log_formats = {
+    csg  => sub { return "slurm-$_[0].out"},
+    flux => sub { return "$_[1].o$_[0]"},
+  };
+
+  unless (exists $log_formats->{$cluster}) {
+    say 'unknown cluster log file format';
+    exit 1;
+  }
+
+  my $result = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
+  unless ($result->count) {
+    say 'no results for ' . $sample->sample_id . ' at step ' . $step->name;
+    exit 1;
+  }
+
+  my $job      = $result->first->job;
+  my $filename =  $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
+  my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
+
+  unless (-e $log_file) {
+    say 'no scheduler logs found';
+    exit 1;
+  }
+
+  io($log_file)->slurp > io->stdout;
+
+  return;
 }
 
 1;
