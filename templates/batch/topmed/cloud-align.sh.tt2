@@ -6,11 +6,12 @@
 #SBATCH --mem=[% job.memory %]
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
-#SBATCH --partition=topmed
+#SBATCH --partition=topmed-working
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
 #SBATCH --nodelist=[% job.nodelist %]
+#SBATCH --begin=now+180
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
