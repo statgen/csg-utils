@@ -231,6 +231,26 @@ sub current_status {
   );
 }
 
+sub current_status_for_step {
+  my ($self, $step) = @_;
+
+  my $inside_rs = $self->results_states_steps->search(
+    {
+      'step.name' => $step,
+      'me.job_id' => {'!=' => undef},
+    },
+    {
+      join => 'step',
+    }
+  );
+
+  return $self->results_states_steps->find(
+    {
+      id => {'=' => $inside_rs->get_column('id')->max()},
+    }
+  );
+}
+
 sub current_state {
   my ($self) = @_;
   my $status = $self->current_status();

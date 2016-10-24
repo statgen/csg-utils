@@ -273,14 +273,8 @@ sub _job_logs {
     exit 1;
   }
 
-  # TODO - get 
-  my $result = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
-  unless ($result->count) {
-    say 'no results for ' . $sample->sample_id . ' at step ' . $step->name;
-    exit 1;
-  }
-
-  my $job      = $result->first->job;
+  my $result   = $sample->results->find({build => $build});
+  my $job      = $result->current_status_for_step($step->name)->job;
   my $filename =  $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
   my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
 
