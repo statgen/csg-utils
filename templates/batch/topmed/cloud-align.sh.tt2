@@ -47,9 +47,7 @@ $MAPPER_UPDATE_CMD --start --step cloud-align
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
-# TODO - introduce a delay into the makefile at each target to avoid quota problems
-make -j [% fastq.indexes.last + 1 %] -f [% fastq.makefile %]
-
+make -f [% fastq.makefile %]
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
   $MAPPER_UPDATE_CMD --state failed
