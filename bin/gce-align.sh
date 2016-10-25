@@ -1,4 +1,5 @@
 #!/bin/bash
+
 SAMPLE_ID=$1
 shift
 RG_IDENT=$1

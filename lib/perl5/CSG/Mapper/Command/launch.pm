@@ -347,7 +347,14 @@ sub execute {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
           my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
-          $rg_ref->{files}->{$fastq->path} = $cram;
+          # TODO - is $fastq->path an unpaired read file?
+          #   if so do something different...idk what yet
+
+          if ($fastq->path) {
+            $rg_ref->{paired}->{$fastq->path} = $cram;
+          } else {
+            $rg_ref->{unpaired}->{$fastq->path} = $cram;
+          }
         }
 
         $rg_idx++;
