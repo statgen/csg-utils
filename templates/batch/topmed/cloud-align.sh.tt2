@@ -104,7 +104,7 @@ fi
 [% END -%]
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
-  $MAPPER_UPDATE_CMD --state completed
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
   $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
   $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
