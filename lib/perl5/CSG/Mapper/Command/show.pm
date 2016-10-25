@@ -13,7 +13,7 @@ sub opt_spec {
   return (
     ['info',          'combined output of job and sample(for backward compatiblity)'],    # TODO - remove after old jobs clear queue
     ['meta-id=i',     'job id for the meta data record (for backward compatibility)'],    # TODO - remove after old jobs clear queue
-    ['job-info=i',    'display basic job info'],
+    ['job-info=i',    'display basic job info for a job record (will search by db id or cluster job id)'],
     ['sample-info=s', 'display all info on a given sample'],
     ['result-info=s', 'display sample and result info for a given sample id'],
     ['step=s',        'display results for a given step (e.g. bam2fastq, align)'],
@@ -83,9 +83,18 @@ sub execute {
   }
 
   if ($opts->{job_info}) {
-    my $job  = $schema->resultset('Job')->find($opts->{job_info});
-    my $info = $self->_job_info($job);
+    my $job = $schema->resultset('Job')->find($opts->{job_info});
 
+    unless ($job) {
+      $job = $schema->resultset('Job')->find({job_id => $opts->{job_info}});
+    }
+
+    unless ($job) {
+      say "unable to locate a job for jobid $opts->{job_info}";
+      exit 1;
+    }
+
+    my $info = $self->_job_info($job);
     $self->_dump($opts->{format}, $info);
   }
 
