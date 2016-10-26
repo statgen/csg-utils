@@ -347,10 +347,7 @@ sub execute {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
           my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
-          # TODO - is $fastq->path an unpaired read file?
-          #   if so do something different...idk what yet
-
-          if ($fastq->path) {
+          if ($fastq->path =~ /_interleaved\.fastq\.gz$/) {
             $rg_ref->{paired}->{$fastq->path} = $cram;
           } else {
             $rg_ref->{unpaired}->{$fastq->path} = $cram;
@@ -359,18 +356,6 @@ sub execute {
 
         $rg_idx++;
         push @{$params->{fastq}->{read_groups}}, $rg_ref;
-      }
-
-      my $makefile = File::Spec->join($run_dir, 'Makefile.cloud-align');
-
-      $params->{fastq}->{count}    = $sample->fastqs->count;
-      $params->{fastq}->{makefile} = $makefile;
-
-      $logger->debug("cloud-align makefile: $makefile") if $debug;
-
-      unless (-e $makefile) {
-        $logger->debug("wrote cloud-align makefile to $makefile") if $debug;
-        $tt->process(q{cloud-align-makefile.tt2}, $params, $makefile) or die $tt->error();
       }
     } elsif ($step->name eq 'local-align') {
       unless ($sample->fastqs->count) {

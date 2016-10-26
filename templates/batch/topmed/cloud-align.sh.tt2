@@ -42,22 +42,35 @@ MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
 MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step cloud-align"
 
 $MAPPER_LOG_CMD --message 'sending fastq to the cloud'
-$MAPPER_UPDATE_CMD --start --step cloud-align
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
-make -f [% fastq.makefile %]
-if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
-  $MAPPER_UPDATE_CMD --state failed
-  exit 1
-fi
-
 rc=0
 [% FOREACH read_group IN fastq.read_groups -%]
-[% FOREACH fastq IN read_group.files.keys -%]
-[% SET cram = read_group.files.$fastq -%]
+[% SET files = read_group.paired -%]
+$MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.name %]'
+[% settings.project_dir %]/bin/gce-align.sh 1 \
+  [% sample.sample_id FILTER lower %]         \
+  rg-[% read_group.index %]                   \
+  "[% read_group.name %]"                     \
+  [% settings.out_dir %]                      \
+  [% read_group.paired.keys.join(' ') %]
+
+[% IF read_group.defined('unpaired') -%]
+[% files.import(read_group.unpaired) -%]
+$MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
+[% settings.project_dir %]/bin/gce-align.sh 0 \
+  [% sample.sample_id FILTER lower %]         \
+  rg-[% read_group.index %]                   \
+  "[% read_group.name %]"                     \
+  [% settings.out_dir %]                      \
+  [% read_group.unpaired.keys.join(' ') %]
+[% END -%]
+
+[% FOREACH fastq IN files.keys -%]
+[% SET cram = files.$fastq -%]
 [% SET flagstat = cram _ '.flagstat' -%]
 ### Begin: [% cram %]
 fastq_file=$(basename [% fastq %])
