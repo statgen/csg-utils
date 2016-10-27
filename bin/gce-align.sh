@@ -15,7 +15,7 @@ set -o pipefail
 
 case "$PAIRED" in
   0) BWA_PAIRED_OPT="" ;;
-  1) BWA_PARIED_OPT="-p" ;;
+  1) BWA_PAIRED_OPT="-p" ;;
 esac
 
 MACHINE_NAME="align-${SAMPLE_ID}-${RG_IDENT}"
