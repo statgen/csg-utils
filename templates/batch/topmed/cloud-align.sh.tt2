@@ -10,7 +10,7 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
-#SBATCH --begin=now+180
+#SBATCH --begin=now+[% job.jobs_cnt * 180 %]
 #SBATCH --qos=topmed-cloud-align
 
 JOB_ID=$SLURM_JOB_ID

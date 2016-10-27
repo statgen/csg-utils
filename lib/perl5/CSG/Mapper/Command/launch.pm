@@ -276,6 +276,7 @@ sub execute {
       job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
       nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
       exclude_nodelist => join($COMMA, map{$_->name} $schema->resultset('Host')->search({name => {'!=' => 'csgspare'}})),
+      jobs_cnt         => $jobs,
     };
 
     if ($params->{job}->{nodelist} eq 'csgspare') {
