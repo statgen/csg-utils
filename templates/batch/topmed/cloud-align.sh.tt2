@@ -96,17 +96,14 @@ if [ -e [% cram %] ]; then
       $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
     else
       $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
-      $MAPPER_UPDATE_CMD --state failed
       rc=1
     fi
   else
     $MAPPER_LOG_CMD --message "flagstat failed for $cram_file" --level critical
-    $MAPPER_UPDATE_CMD --state failed
     rc=1
   fi
 else
   $MAPPER_LOG_CMD --message "cloud alignment did not return a cram for fastq $fastq_file"
-  $MAPPER_UPDATE_CMD --state failed
   rc=1
 fi
 ### END: [% cram %]
