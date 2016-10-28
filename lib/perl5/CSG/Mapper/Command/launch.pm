@@ -323,16 +323,12 @@ sub execute {
         $params->{job}->{nodelist} = $comps[$idx];
       }
 
-=cut
-      my $running_rs  = $schema->resultset('ResultsStatesStep')->running_by_step($build, $step->name);
-      my $running_cnt = $running_rs->count;
-
-      my $rg_cnt  = 0;
-      $rg_cnt    += scalar $_->result->sample->read_groups for $running_rs->all();
-
-      $logger->debug("running samples: " . $running_cnt) if $debug;
-      $logger->debug("read groups: $rg_cnt") if $debug;
-=cut
+      # XXX - if we want the delay to be based on all running jobs for this step
+      #       may need to make it submitted rather than running though.
+      #
+      # my $running_cnt  = $schema->resultset('ResultsStatesStep')->running_by_step($build, $step->name)->count;
+      # $logger->debug("running samples: $running_cnt") if $debug;
+      # $params->{job}->{jobs_cnt} = $running_cnt + 1;
 
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
