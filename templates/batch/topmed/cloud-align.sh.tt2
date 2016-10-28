@@ -77,7 +77,7 @@ $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group
 fastq_file=$(basename [% fastq %])
 cram_file=$(basename [% cram %])
 
-if [ -e [% cram %] ]; then
+if [[ -e [% cram %] && -e [% cram %].ok ]]; then
   $MAPPER_LOG_CMD --message "running flagstat on $cram_file"
   [% gotcloud.samtools %] flagstat [% cram %] > [% flagstat %]
 
@@ -103,7 +103,7 @@ if [ -e [% cram %] ]; then
     rc=1
   fi
 else
-  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram for fastq $fastq_file"
+  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file"
   rc=1
 fi
 ### END: [% cram %]
