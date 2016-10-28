@@ -340,7 +340,7 @@ sub execute {
           delay => 0, # int(rand($running_cnt + $rg_idx + $rg_cnt)),
         };
 
-        for my $fastq ($sample->fastqs->search({read_group => $read_group})) {
+        for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
           my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
 
