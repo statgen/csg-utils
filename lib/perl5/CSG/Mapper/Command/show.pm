@@ -174,7 +174,14 @@ sub _sample_info {
       current_state => $result->current_state,
       current_step  => $result->current_step,
       build         => $result->build,
-      fastqs        => [map +{read_group => $_->read_group, path => $_->path}, $sample->fastqs],
+      fastqs        => [
+        map +{
+          read_group => $_->read_group,
+          path       => $_->path,
+          align_at   => ($_->aligned_at) ? $_->aligned_at->datetime : undef,
+          created_at => $_->created_at->datetime,
+        }, $sample->fastqs
+      ],
     }
   };
 }
