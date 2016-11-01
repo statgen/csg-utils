@@ -17,7 +17,7 @@ sub opt_spec {
     ['limit|l=i',    'Limit number of jobs to submit'],
     ['procs|p=i',    'Number of cores to request'],
     ['memory|m=i',   'Amount of memory to request, in MB'],
-    ['walltime|w=i', 'Amount of wallclock time for this job'],
+    ['walltime|w=s', 'Amount of wallclock time for this job'],
     ['delay=i',      'Amount of time to delay exection in seconds'],
     ['meta-id=i',    'Job meta record for parent job'],
     ['tmp-dir=s',    'Where to write fastq files'],
