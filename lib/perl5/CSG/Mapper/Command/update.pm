@@ -185,8 +185,8 @@ sub execute {
     $logger->info("removing fastq[$file] from disk");
     unlink($fastq->path);
 
-    $logger->info("removing fastq[$file] record from database");
-    $fastq->delete;
+    $logger->info("marking fastq[$file] as aligned");
+    $fastq->align;
   }
 
   if ($opts->{bam2fastq_cleanup}) {

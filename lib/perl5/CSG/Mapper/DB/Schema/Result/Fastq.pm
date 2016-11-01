@@ -66,6 +66,12 @@ __PACKAGE__->table("fastqs");
   data_type: 'text'
   is_nullable: 0
 
+=head2 aligned_at
+
+  data_type: 'datetime'
+  datetime_undef_if_invalid: 1
+  is_nullable: 1
+
 =head2 created_at
 
   data_type: 'datetime'
@@ -92,6 +98,12 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 0 },
   "read_group",
   { data_type => "text", is_nullable => 0 },
+  "aligned_at",
+  {
+    data_type => "datetime",
+    datetime_undef_if_invalid => 1,
+    is_nullable => 1,
+  },
   "created_at",
   {
     data_type => "datetime",
@@ -137,9 +149,11 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-09-07 08:42:41
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:vbRoLSsp1lQ8XlRbHhaFVw
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-28 17:42:16
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YbRs1KVhi7Xz2HPaEvEj/Q
 
+sub align {
+  return shift->update({aligned_at => DateTime->now()});
+}
 
-# You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

@@ -6,11 +6,12 @@
 #SBATCH --mem=[% job.memory %]
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
-#SBATCH --partition=topmed
+#SBATCH --partition=topmed-working
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
-#SBATCH --begin=now+180
+#SBATCH --begin=now+[% job.jobs_cnt * 180 %]
+#SBATCH --qos=topmed-cloud-align
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -76,7 +77,7 @@ $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group
 fastq_file=$(basename [% fastq %])
 cram_file=$(basename [% cram %])
 
-if [ -e [% cram %] ]; then
+if [[ -e [% cram %] && -e [% cram %].ok ]]; then
   $MAPPER_LOG_CMD --message "running flagstat on $cram_file"
   [% gotcloud.samtools %] flagstat [% cram %] > [% flagstat %]
 
@@ -95,17 +96,14 @@ if [ -e [% cram %] ]; then
       $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
     else
       $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
-      $MAPPER_UPDATE_CMD --state failed
       rc=1
     fi
   else
     $MAPPER_LOG_CMD --message "flagstat failed for $cram_file" --level critical
-    $MAPPER_UPDATE_CMD --state failed
     rc=1
   fi
 else
-  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram for fastq $fastq_file"
-  $MAPPER_UPDATE_CMD --state failed
+  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file"
   rc=1
 fi
 ### END: [% cram %]

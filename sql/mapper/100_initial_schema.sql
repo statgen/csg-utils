@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS `fastqs` (
   `build` VARCHAR(45) NOT NULL DEFAULT '38',
   `path` TEXT NOT NULL,
   `read_group` TEXT NOT NULL,
+  `aligned_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL,
   `modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
