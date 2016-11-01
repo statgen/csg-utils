@@ -12,6 +12,7 @@
 #SBATCH --job-name=[% job.job_name %]
 #SBATCH --begin=now+[% job.jobs_cnt * 180 %]
 #SBATCH --qos=topmed-cloud-align
+#SBATCH --nodelist=[% job.nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
