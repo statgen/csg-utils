@@ -30,9 +30,12 @@ then
   then  
     for f in $INPUT_FILES
     do
+      # calculate 60 seconds + tranfer time at 40 Mbps for file
+      FILE_TRANSFER_TIMEOUT=$(echo "60 + ("$(stat -c%s kinship_job/topmed_freeze2_10597.kin)"*8/1024/1024/40)" | bc)
+    
       echo "Uploading "$f" ..."
       START_TIME=$(date +%s)
-      gcloud compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
+      timeout $FILE_TRANSFER_TIMEOUT gcloud compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
       EXIT_STATUS=$?
       echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
@@ -80,7 +83,7 @@ then
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
           echo "Downloading "$OUTPUT_FILE" ..."
           START_TIME=$(date +%s)
-          gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
+          timeout $FILE_TRANSFER_TIMEOUT gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
           echo 'Download exit status: '$EXIT_STATUS
           echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
