@@ -31,7 +31,7 @@ then
     for f in $INPUT_FILES
     do
       # calculate 60 seconds + tranfer time at 40 Mbps for file
-      FILE_TRANSFER_TIMEOUT=$(echo "60 + ("$(stat -c%s kinship_job/topmed_freeze2_10597.kin)"*8/1024/1024/40)" | bc)
+      FILE_TRANSFER_TIMEOUT=$(echo "60 + ("$(stat -c%s $f)"*8/1024/1024/40)" | bc)
     
       echo "Uploading "$f" ..."
       START_TIME=$(date +%s)
