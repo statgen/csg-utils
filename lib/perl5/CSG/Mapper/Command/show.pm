@@ -127,7 +127,11 @@ sub execute {
     my $step  = $self->{stash}->{step};
 
     for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
-     say $result->result->status_line();
+      if ($step->name eq 'started') {
+        say $result->result->status_line() . 'JOBID: ' . $result->job->job_id;
+      } else {
+        say $result->result->status_line();
+      }
     }
   }
 }
@@ -150,12 +154,14 @@ sub _dump {
 sub _sample_info {
   my ($self) = @_;
 
-  my $sample     = $self->{stash}->{sample};
-  my $result     = $sample->result_for_build($self->app->global_options->{build});
+  my $sample = $self->{stash}->{sample};
+  my $result = $sample->result_for_build($self->app->global_options->{build});
+  my $build  = ($result) ? $result->build : $self->app->global_options->{build};
+
   my $sample_obj = CSG::Mapper::Sample->new(
     cluster => $self->app->global_options->{cluster},
     record  => $sample,
-    build   => $result->build,
+    build   => $build,
   );
 
   return {
@@ -171,9 +177,6 @@ sub _sample_info {
       fullpath      => $sample->fullpath,
       out_dir       => $sample_obj->result_path,
       run_dir       => $sample_obj->state_dir,
-      current_state => $result->current_state,
-      current_step  => $result->current_step,
-      build         => $result->build,
       fastqs        => [
         map +{
           read_group => $_->read_group,
@@ -192,6 +195,8 @@ sub _result_info {
   my @results = ();
   my $sample  = $self->{stash}->{sample};
   my $result  = $sample->result_for_build($self->app->global_options->{build});
+
+  return [] unless $result;
 
   for ($result->results_states_steps->all) {
     push @results, {
