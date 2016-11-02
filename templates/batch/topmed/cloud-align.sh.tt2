@@ -104,7 +104,7 @@ if [[ -e [% cram %] && -e [% cram %].ok ]]; then
     rc=1
   fi
 else
-  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file"
+  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file" --level critical
   rc=1
 fi
 ### END: [% cram %]
