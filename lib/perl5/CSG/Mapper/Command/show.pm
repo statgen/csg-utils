@@ -21,6 +21,7 @@ sub opt_spec {
     ['stale',         'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
     ['logs=s',        'display mapper logs for a sample'],
     ['job-logs=s',    'display scheduler most recent job logs for sample (i.e. STDOUT/STDERR of a running job)'],
+    ['job-id=s',      'job id as assigned by the scheduler (e.g. slurm, torque)'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -56,7 +57,26 @@ sub validate_args {
     $self->{stash}->{step} = $step;
   }
 
-  for (qw(sample_info result_info logs job_logs)) {
+  if ($opts->{job_id}) {
+    my $job = $schema->resultset('Job')->find({job_id => $opts->{job_id}});
+    unless ($job) {
+      $self->usage_error('invalid job');
+    }
+
+    $self->{stash}->{job}    = $job;
+    $self->{stash}->{sample} = $job->result->sample;
+  } elsif ($opts->{job_logs} {
+    my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{job_logs});
+
+    unless ($sample) {
+      say "invalid sample id $opts->{$_}";
+      exit 1;
+    }
+
+    $self->{stash}->{sample} = $sample;
+  }
+
+  for (qw(sample_info result_info logs)) {
     if (exists $opts->{$_}) {
       my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{$_}});
 
@@ -295,8 +315,8 @@ sub _job_logs {
   }
 
   my $result   = $sample->results->find({build => $build});
-  my $job      = $result->current_status_for_step($step->name)->job;
-  my $filename =  $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
+  my $job      = $self->{stash}->{job} // $result->current_status_for_step($step->name)->job;
+  my $filename = $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
   my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
 
   unless (-e $log_file) {
