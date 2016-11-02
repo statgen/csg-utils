@@ -57,7 +57,7 @@ $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.nam
   [% sample.sample_id FILTER lower %]         \
   rg-[% read_group.index %]                   \
   "[% read_group.name %]"                     \
-  [% settings.out_dir %]                      \
+  [% job.tmp_dir %]                      \
   [% read_group.paired.keys.join(' ') %]
 
 [% IF read_group.defined('unpaired') -%]
@@ -67,7 +67,7 @@ $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group
   [% sample.sample_id FILTER lower %]         \
   rg-[% read_group.index %]                   \
   "[% read_group.name %]"                     \
-  [% settings.out_dir %]                      \
+  [% job.tmp_dir %]                      \
   [% read_group.unpaired.keys.join(' ') %]
 [% END -%]
 
@@ -115,8 +115,16 @@ if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
-  $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
-  $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+  $MAPPER_LOG_CMD --message 'moving aligned cram files to [% settings.out_dir %]'
+  mv -v [% job.tmp_dir %]/*.{cram,cram.ok} [% settings.out_dir %]
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    $MAPPER_LOG_CMD --message 'failed to moved aligned cram files to [% settings.out_dir %]' --level critical
+    $MAPPER_UPDATE_CMD --state failed
+  else
+    $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
+    $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+  fi
 else
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
   $MAPPER_UPDATE_CMD --state failed
