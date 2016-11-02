@@ -39,6 +39,17 @@ sub opt_spec {
 sub validate_args {
   my ($self, $opts, $args) = @_;
 
+  if ($opts->{job_id}) {
+    my $job = $schema->resultset('Job')->find({job_id => $opts->{job_id}});
+    unless ($job) {
+      $self->usage_error('invalid job');
+    }
+
+    $self->{stash}->{job} = $job;
+    $opts->{job_logs}     = $job->result->sample->sample_id;
+    $opts->{step}         = $job->results_states_steps->first->step->name;
+  }
+
   if ($opts->{state}) {
     my $state = $schema->resultset('State')->find({name => $opts->{state}});
     unless ($state) {
@@ -57,34 +68,12 @@ sub validate_args {
     $self->{stash}->{step} = $step;
   }
 
-  if ($opts->{job_id}) {
-    my $job = $schema->resultset('Job')->find({job_id => $opts->{job_id}});
-    unless ($job) {
-      $self->usage_error('invalid job');
-    }
-
-    $self->{stash}->{job}    = $job;
-    $self->{stash}->{sample} = $job->result->sample;
-  } elsif ($opts->{job_logs} {
-    my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{job_logs});
-
-    unless ($sample) {
-      say "invalid sample id $opts->{$_}";
-      exit 1;
-    }
-
-    $self->{stash}->{sample} = $sample;
-  }
-
-  for (qw(sample_info result_info logs)) {
+  for (qw(sample_info result_info logs job_logs)) {
     if (exists $opts->{$_}) {
       my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{$_}});
 
       unless ($sample) {
-        say "invalid sample id $opts->{$_}";
-        exit 1;
-      }
-
+        say "invalid sample id $opts->{$_}"; exit 1; } 
       $self->{stash}->{sample} = $sample;
       last;
     }
@@ -92,8 +81,7 @@ sub validate_args {
 }
 
 sub execute {
-  my ($self, $opts, $args) = @_;
-
+  my ($self, $opts, $args) = @_; 
   if ($opts->{info}) {
     my $job = $schema->resultset('Job')->find($opts->{meta_id});
     $self->_dump($opts->{format}, $self->_job_info($job));
@@ -315,7 +303,7 @@ sub _job_logs {
   }
 
   my $result   = $sample->results->find({build => $build});
-  my $job      = $self->{stash}->{job} // $result->current_status_for_step($step->name)->job;
+  my $job      = $result->current_status_for_step($step->name)->job;
   my $filename = $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
   my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
 
