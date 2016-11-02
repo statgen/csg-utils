@@ -43,16 +43,20 @@ then
     do
       # calculate 60 seconds + tranfer time at 40 Mbps for file
       FILE_TRANSFER_TIMEOUT=$(echo "60 + ("$(stat -c%s $f)"*8/1024/1024/40)" | bc)
-    
+
       echo "Uploading "$f" ..."
       START_TIME=$(date +%s)
       timeout $FILE_TRANSFER_TIMEOUT gcloud --verbosity=debug compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
       EXIT_STATUS=$?
       echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
+      if [ $EXIT_STATUS -eq 124 ]; then
+        echo "[$(date)] copy-files transfer to google timed out after ${FILE_TRANSFER_TIMEOUT}s"
+      fi
+
       RETRY_COUNTER=0
       while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
-      do  
+      do
 
         gcloud compute ssh $MACHINE_NAME -- sudo docker start $CONTAINER_ID
 
@@ -67,7 +71,7 @@ then
           then
             CONTAINER_IS_RUNNING=0
             EXIT_STATUS=${BASH_REMATCH[1]}
-            
+
             echo "Fetching logs ..."
             gcloud compute ssh $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
             if [[ $? != 0 ]]
@@ -98,6 +102,11 @@ then
           EXIT_STATUS=$?
           echo 'Download exit status: '$EXIT_STATUS
           echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+
+          if [ $EXIT_STATUS -eq 124 ]; then
+            echo "[$(date)] copy-files transfer to google timed out after ${FILE_TRANSFER_TIMEOUT}s"
+          fi
+
           break
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
         then
