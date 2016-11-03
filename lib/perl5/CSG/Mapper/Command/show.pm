@@ -138,7 +138,7 @@ sub execute {
       if ($step->name eq 'started') {
         say $result->result->status_line() . 'JOBID: ' . $result->job->job_id;
       } else {
-        say $result->result->status_line();
+        say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime();
       }
     }
   }
