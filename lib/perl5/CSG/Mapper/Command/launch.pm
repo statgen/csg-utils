@@ -14,14 +14,15 @@ my $schema = CSG::Mapper::DB->new();
 
 sub opt_spec {
   return (
-    ['limit|l=i',    'Limit number of jobs to submit'],
-    ['procs|p=i',    'Number of cores to request'],
-    ['memory|m=i',   'Amount of memory to request, in MB'],
-    ['walltime|w=s', 'Amount of wallclock time for this job'],
-    ['delay=i',      'Amount of time to delay exection in seconds'],
-    ['meta-id=i',    'Job meta record for parent job'],
-    ['tmp-dir=s',    'Where to write fastq files'],
-    ['sample=s',     'Sample id to submit (e.g. NWD123456)'],
+    ['limit|l=i',       'Limit number of jobs to submit'],
+    ['procs|p=i',       'Number of cores to request'],
+    ['memory|m=i',      'Amount of memory to request, in MB'],
+    ['walltime|w=s',    'Amount of wallclock time for this job'],
+    ['delay=i',         'Amount of time to delay exection in seconds'],
+    ['meta-id=i',       'Job meta record for parent job'],
+    ['tmp-dir=s',       'Where to write fastq files'],
+    ['sample=s',        'Sample id to submit (e.g. NWD123456)'],
+    ['exclude-host=s@', 'Exclude samples that would fall on a specific host (e.g. topmed3, topmed4)'],
     [
       'step=s',
       'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
@@ -113,6 +114,16 @@ sub execute {
     push @samples, $dep_job_meta->result->sample;
   } elsif ($opts->{sample}) {
     @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
+  } elsif ($opts->{exclude_host}) {
+    @samples = $schema->resultset('Sample')->search(
+      {
+        'host.name' => {-not_in => $opts->{exclude_host}},
+      },
+      {
+        join     => 'host',
+        order_by => 'RAND()'
+      }
+    );
   } else {
     @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
   }
