@@ -49,28 +49,36 @@ $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
-rc=0
+[% IF settings.cluster == 'csg' -%]
 [% FOREACH read_group IN fastq.read_groups -%]
+### Begin: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
 [% SET files = read_group.paired -%]
 $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.name %]'
 [% settings.project_dir %]/bin/gce-align.sh 1 \
-  [% sample.sample_id FILTER lower %]         \
-  rg-[% read_group.index %]                   \
-  "[% read_group.name %]"                     \
-  [% job.tmp_dir %]                      \
+  [% sample.sample_id FILTER lower %] \
+  rg-[% read_group.index %] \
+  "[% read_group.name %]" \
+  [% job.tmp_dir %] \
   [% read_group.paired.keys.join(' ') %]
 
 [% IF read_group.defined('unpaired') -%]
-[% files.import(read_group.unpaired) -%]
-$MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
-[% settings.project_dir %]/bin/gce-align.sh 0 \
-  [% sample.sample_id FILTER lower %]         \
-  rg-[% read_group.index %]                   \
-  "[% read_group.name %]"                     \
-  [% job.tmp_dir %]                      \
-  [% read_group.unpaired.keys.join(' ') %]
+  [% files.import(read_group.unpaired) -%]
+  $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
+  [% settings.project_dir %]/bin/gce-align.sh 0 \
+    [% sample.sample_id FILTER lower %] \
+    rg-[% read_group.index %] \
+    "[% read_group.name %]" \
+    [% job.tmp_dir %] \
+    [% read_group.unpaired.keys.join(' ') %]
 [% END -%]
+### End: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
 
+[% END -%]
+[% ELSIF settings.cluster == 'flux' -%]
+  # TODO - flux deployment
+[% END -%]
+rc=0
+[% FOREACH read_group IN fastq.read_groups -%]
 [% FOREACH fastq IN files.keys -%]
 [% SET cram = files.$fastq -%]
 [% SET flagstat = cram _ '.flagstat' -%]
@@ -107,7 +115,7 @@ else
   $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file" --level critical
   rc=1
 fi
-### END: [% cram %]
+### End: [% cram %]
 
 [% END -%]
 [% END -%]

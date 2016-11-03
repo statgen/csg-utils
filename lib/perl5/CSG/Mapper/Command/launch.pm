@@ -347,7 +347,7 @@ sub execute {
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
-          my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+          my $cram = File::Spec->join($path, qq{$name.cram});
 
           if ($fastq->path =~ /_interleaved\.fastq\.gz$/) {
             $rg_ref->{paired}->{$fastq->path} = $cram;
