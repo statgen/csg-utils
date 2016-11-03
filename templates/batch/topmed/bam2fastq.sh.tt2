@@ -1,5 +1,4 @@
 #!/bin/sh
-
 [% IF settings.cluster == 'csg' -%]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=[% job.procs %]
@@ -35,49 +34,50 @@ JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
 [% END -%]
 
-META_ID=[% settings.meta_id %]
-MAPPER_CMD=[% settings.mapper_cmd %]
-MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step bam2fastq"
-
-TMP_DIR=[% settings.tmp_dir %]
+set -e -o pipefail
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
 export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 
-$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step bam2fastq"
+TMP_DIR=[% settings.tmp_dir %]
 
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_LOG_CMD --message 'starting bam2fastq'
 
 if [ -e $TMP_DIR ]; then
-  $MAPPER_LOG_CMD --message 'removing existing TMP_DIR'
+  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
   rm -rf $TMP_DIR
 fi
 
-$MAPPER_LOG_CMD --message 'created JOB_TMP_DIR'
 JOB_TMP_DIR=/tmp/[% settings.project %]/$JOB_ID
+$MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
 mkdir -p $JOB_TMP_DIR
+
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to create JOB_TMP_DIR' --level critical
+  $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
 
-$MAPPER_LOG_CMD --message 'creating TMP_DIR'
+$MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
 mkdir -p $TMP_DIR
 
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to create TMP_DIR' --level critical
+  $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
 
-$MAPPER_LOG_CMD --message 'setting permissions on TMP_DIR'
+$MAPPER_LOG_CMD --message "setting permissions on TMP_DIR $TMP_DIR"
 chmod 750 $TMP_DIR
 
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to set permissions on TMP_DIR' --level critical
+  $MAPPER_LOG_CMD --message "failed to set permissions on TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
@@ -88,8 +88,16 @@ sleep "[% settings.delay %]m"
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
-$MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
+$MAPPER_LOG_CMD --message 'generating flagstat for src cram [% sample.incoming_path %]'
+flagstat_file=[% job.workdir %]/[% sample.sample_id %].src.flagstat
+[% gotcloud.samtools %] flagstat [% sample.incoming_path %] > $flagstat
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to generate flagstat for sample [% sample.incoming_path %]' --level critical
+  exit 1
+fi
 
+rc=0
+$MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
 export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 [% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
   | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
@@ -100,26 +108,38 @@ export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 
-if [ "$rc" -eq 0 ]; then
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
+
+  fastq_lines=0
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ2); do
+    fastq_lines=$(( $fastq_lines + $(zcat $fastq | wc -l) ))
+  done
+
+  fastq_reads=$(( $fastq_lines / 4 ))
+  cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+  if [ $fastq_reads -eq $cram_reads ]; then
+    $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+    $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+    if [ $? -ne 0 ]; then
+      $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+      rc=1
+    fi
+  else
+    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    rc=1
+  fi
+fi
+
+if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
-
-  # TODO - detect unpaired reads and bail if found but save output
-
-  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
-  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
-  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
-
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
-    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
-    rc=$?
-  fi
 else
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
   $MAPPER_UPDATE_CMD --state failed --exit-code $rc
 fi
 
 exit $rc
-
-# vi: ft=sh
