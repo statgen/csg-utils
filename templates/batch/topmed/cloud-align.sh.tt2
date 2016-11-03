@@ -101,8 +101,15 @@ if [[ -e [% cram %] && -e [% cram %].ok ]]; then
       $MAPPER_LOG_CMD --message "reads matched for $cram_file"
       $MAPPER_LOG_CMD --message "completed alignment of fastq $fastq_file"
 
-      $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
-      $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
+      $MAPPER_LOG_CMD --message 'moving aligned cram files to [% settings.out_dir %]'
+      mv -v [% cram %]{,.ok} [% settings.out_dir %]
+      if [ $? -ne 0 ]; then
+        $MAPPER_LOG_CMD --message 'failed to moved aligned cram files to [% settings.out_dir %]' --level critical
+        rc=1
+      else
+        $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
+        $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
+      fi
     else
       $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
       rc=1
@@ -123,15 +130,11 @@ if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 
-  $MAPPER_LOG_CMD --message 'moving aligned cram files to [% settings.out_dir %]'
-  mv -v [% job.tmp_dir %]/*.{cram,cram.ok} [% settings.out_dir %]
-  rc=$?
-  if [ $rc -ne 0 ]; then
-    $MAPPER_LOG_CMD --message 'failed to moved aligned cram files to [% settings.out_dir %]' --level critical
-    $MAPPER_UPDATE_CMD --state failed
-  else
-    $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
-    $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+  $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
+  $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message 'failed to cleanup bam2fastq tmp_dir [% job.tmp_dir %]' --level critical
+    rc=1
   fi
 else
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
