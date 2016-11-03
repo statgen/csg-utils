@@ -291,6 +291,10 @@ sub has_fastqs {
   return $self->search_related('fastqs')->search({path => $fastq})->count;
 }
 
+sub has_fastqs_with_unpaired_reads {
+  return shift->fastqs->search({path => {-not_like => '%interleaved%'}})->count;
+}
+
 sub result_for_build {
   my ($self, $build) = @_;
   return $self->results->find({build => $build});

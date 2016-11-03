@@ -128,6 +128,11 @@ sub execute {
         $logger->debug('no fastq files recorded for sample ' . $sample->sample_id) if $debug;
         next;
       }
+
+      if ($sample->has_fastqs_with_unpaired_reads) {
+        $logger->debug('found unpaired reads in the fastqs for sample ' . $sample->sample_id) if $debug;
+        next;
+      }
     }
 
     my $sample_obj = CSG::Mapper::Sample->new(
