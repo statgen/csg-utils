@@ -90,7 +90,7 @@ $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].
 
 $MAPPER_LOG_CMD --message 'generating flagstat for src cram [% sample.incoming_path %]'
 flagstat_file=[% job.workdir %]/[% sample.sample_id %].src.flagstat
-[% gotcloud.samtools %] flagstat [% sample.incoming_path %] > $flagstat
+[% gotcloud.samtools %] flagstat [% sample.incoming_path %] > $flagstat_file
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message 'failed to generate flagstat for sample [% sample.incoming_path %]' --level critical
   exit 1
