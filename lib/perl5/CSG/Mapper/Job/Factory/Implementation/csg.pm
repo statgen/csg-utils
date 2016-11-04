@@ -25,6 +25,7 @@ Readonly::Hash my %JOB_STATES => (
   CANCELLED => 'cancelled',
   TIMEOUT   => 'timeout',
   PENDING   => 'pending',
+  NODE_FAIL => 'node_fail',
 );
 
 has 'job_id'            => (is => 'rw', isa => 'Int',       predicate => 'has_job_id');
