@@ -23,6 +23,7 @@ sub opt_spec {
     ['tmp-dir=s',       'Where to write fastq files'],
     ['sample=s',        'Sample id to submit (e.g. NWD123456)'],
     ['exclude-host=s@', 'Exclude samples that would fall on a specific host (e.g. topmed3, topmed4)'],
+    ['requested',       'Run only samples that are in the requested state'],
     [
       'step=s',
       'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
@@ -130,9 +131,19 @@ sub execute {
 
   for my $sample (@samples) {
     last if $opts->{limit} and $jobs >= $opts->{limit};
-    next unless $sample->is_available($step->name, $build);
-
     my $logger = CSG::Mapper::Logger->new();
+
+    unless ($sample->is_available($step->name, $build)) {
+      $logger->info('sample ' . $sample->sample_id . ' is not available for processing') if $debug;
+      next;
+    }
+
+    if ($opts->{requested}) {
+      unless ($sample->is_requested($step->name, $build)) {
+        $logger->info('sample ' . $sample->sample_id . ' is not in requested state') if $debug;
+        next;
+      }
+    }
 
     if ($step->name =~ /(?:cloud|local)\-align/) {
       unless ($sample->fastqs->count) {

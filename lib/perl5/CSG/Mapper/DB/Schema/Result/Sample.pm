@@ -304,6 +304,14 @@ sub current_state {
   my ($self, $build) = @_;
 }
 
+sub is_requested {
+  my ($self, $step, $build) = @_;
+  my $result = $self->results->find({build => $build});
+
+  return $FALSE unless $result;
+  return $TRUE if $result->requested_step($step);
+}
+
 sub is_available {
   my ($self, $step, $build) = @_;
 
