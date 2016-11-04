@@ -208,9 +208,10 @@ sub _result_info {
 
   for ($result->results_states_steps->all) {
     push @results, {
-      job_id => $_->job_id,
-      state  => $_->state->name,
-      step   => $_->step->name,
+      job_id  => $_->job_id,
+      state   => $_->state->name,
+      step    => $_->step->name,
+      created => $_->created_at->datetime,
       };
   }
 
