@@ -34,7 +34,7 @@ JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
 [% END -%]
 
-set -e -o pipefail
+set -eu -o pipefail
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}

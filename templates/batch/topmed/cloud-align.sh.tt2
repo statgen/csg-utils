@@ -30,6 +30,8 @@ NODELIST=$SLURM_JOB_NODELIST
 #PBS -j oe
 #PBS -N [% job.job_name %]
 
+set -eu -o pipefail
+
 JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
 [% END -%]
