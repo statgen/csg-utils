@@ -14,16 +14,17 @@ my $schema = CSG::Mapper::DB->new();
 
 sub opt_spec {
   return (
-    ['limit|l=i',       'Limit number of jobs to submit'],
-    ['procs|p=i',       'Number of cores to request'],
-    ['memory|m=i',      'Amount of memory to request, in MB'],
-    ['walltime|w=s',    'Amount of wallclock time for this job'],
-    ['delay=i',         'Amount of time to delay exection in seconds'],
-    ['meta-id=i',       'Job meta record for parent job'],
-    ['tmp-dir=s',       'Where to write fastq files'],
-    ['sample=s',        'Sample id to submit (e.g. NWD123456)'],
-    ['exclude-host=s@', 'Exclude samples that would fall on a specific host (e.g. topmed3, topmed4)'],
-    ['requested',       'Run only samples that are in the requested state'],
+    ['limit|l=i',         'Limit number of jobs to submit'],
+    ['procs|p=i',         'Number of cores to request'],
+    ['memory|m=i',        'Amount of memory to request, in MB'],
+    ['walltime|w=s',      'Amount of wallclock time for this job'],
+    ['delay=i',           'Amount of time to delay exection in seconds'],
+    ['meta-id=i',         'Job meta record for parent job'],
+    ['tmp-dir=s',         'Where to write fastq files'],
+    ['sample=s',          'Sample id to submit (e.g. NWD123456)'],
+    ['exclude-host=s@',   'Exclude samples that would fall on a specific host(s) (e.g. topmed3, topmed4)'],
+    ['exclude-center=s@', 'Exclude samples that came from specific center(s) (e.g. illumina)'],
+    ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
       'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
@@ -109,27 +110,32 @@ sub execute {
       : $config->get($cluster, $step->name . '_walltime');
   ## use tidy
 
-  my @samples      = ();
+
+  my $search       = {};
+  my $attrs        = {order_by => 'RAND()'};
   my $dep_job_meta = $self->{stash}->{meta};
+
   if ($dep_job_meta) {
-    push @samples, $dep_job_meta->result->sample;
+    $search->{id} = $dep_job_meta->result->sample->id;
+    $attrs = {};
+
   } elsif ($opts->{sample}) {
-    @samples = $schema->resultset('Sample')->search({sample_id => $opts->{sample}});
-  } elsif ($opts->{exclude_host}) {
-    @samples = $schema->resultset('Sample')->search(
-      {
-        'host.name' => {-not_in => $opts->{exclude_host}},
-      },
-      {
-        join     => 'host',
-        order_by => 'RAND()'
-      }
-    );
+    $search->{sample_id} = $opts->{sample};
+    $attrs = {};
+
   } else {
-    @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
+    if ($opts->{exclude_host}) {
+      $search->{'host.name'} = {-not_in => $opts->{exclude_host}};
+      push @{$attrs->{join}}, 'host';
+    }
+
+    if ($opts->{exclude_center}) {
+      $search->{'center.name'} = {-not_in => $opts->{exclude_center}};
+      push @{$attrs->{join}}, 'center';
+    }
   }
 
-  for my $sample (@samples) {
+  for my $sample ($schema->resultset('Sample')->search($search, $attrs)) {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     my $logger = CSG::Mapper::Logger->new();
 
