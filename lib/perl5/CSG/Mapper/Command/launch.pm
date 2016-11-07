@@ -336,6 +336,7 @@ sub execute {
       bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
       bwa      => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
       samblaster => File::Spec->join($gotcloud_root, '..', 'samblaster', 'bin', 'samblaster'), # TODO - need real path
+      illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
     };
 
     if ($step->name eq 'cloud-align') {

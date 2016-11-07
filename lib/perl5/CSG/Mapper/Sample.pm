@@ -150,6 +150,13 @@ has 'state_dir' => (
   builder => '_build_state_dir',
 );
 
+has 'ref_build' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_ref_build',
+);
+
 before [qw(incoming_path result_path)] => sub {
   shift->slot;
 };
@@ -296,6 +303,10 @@ sub _build_state_dir {
   my $run_dir = $self->_conf->get($self->project, 'run_dir');
 
   return File::Spec->join($self->prefix, $workdir, $run_dir, $self->sample_id);
+}
+
+sub _build_ref_build {
+  return shift->record->ref_build;
 }
 
 sub is_complete {

@@ -106,6 +106,12 @@ __PACKAGE__->table("samples");
   data_type: 'bigint'
   is_nullable: 1
 
+=head2 ref_build
+
+  data_type: 'varchar'
+  is_nullable: 0
+  size: 45
+
 =head2 created_at
 
   data_type: 'datetime'
@@ -146,6 +152,8 @@ __PACKAGE__->add_columns(
   { data_type => "integer", is_nullable => 1 },
   "flagstat",
   { data_type => "bigint", is_nullable => 1 },
+  "ref_build",
+  { data_type => "varchar", is_nullable => 0, size => 45 },
   "created_at",
   {
     data_type => "datetime",
@@ -281,8 +289,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 14:27:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4UyBp7PpsarPM3wjljN5tw
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-11-07 08:16:17
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cb3gwdeEmCyvoXPns/OoNg
 
 use CSG::Constants;
 

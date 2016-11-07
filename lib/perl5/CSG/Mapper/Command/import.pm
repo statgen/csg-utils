@@ -18,6 +18,7 @@ Readonly::Array my @IMPORT_FIELDS => (
     state_b38
     year
     flagstat
+    build
     fullpath
     )
 );
@@ -73,28 +74,47 @@ sub execute {
     my $file     = Path::Class->file($path);
     my @comps    = $file->components();
     my $hostname = $comps[3] // $project;
+    my $proj     = $schema->resultset('Project')->find_or_create({name => $project});
+    my $center   = $schema->resultset('Center')->find_or_create({name => $line->center});
+    my $study    = $schema->resultset('Study')->find_or_create({name => $line->study});
+    my $host     = $schema->resultset('Host')->find_or_create({name => $hostname});
+    my $pi       = $schema->resultset('Pi')->find_or_create({name => $line->pi});
+    my $params   = {
+      sample_id  => $line->sample_id,
+      center_id  => $center->id,
+      study_id   => $study->id,
+      pi_id      => $pi->id,
+      host_id    => $host->id,
+      project_id => $proj->id,
+      filename   => $line->filename,
+      run_dir    => $line->run_dir,
+      fullpath   => $line->fullpath,
+      year       => $line->year,
+      flagstat   => $line->flagstat,
+    };
 
-    my $proj = $schema->resultset('Project')->find_or_create({name => $project});
-    my $center = $schema->resultset('Center')->find_or_create({name => $line->center});
-    my $study = $schema->resultset('Study')->find_or_create({name => $line->study});
-    my $host = $schema->resultset('Host')->find_or_create({name => $hostname});
-    my $pi = $schema->resultset('Pi')->find_or_create({name => $line->pi});
+    my $sample_rs = $schema->resultset('Sample')->search($params);
 
-    $schema->resultset('Sample')->find_or_create(
-      {
-        sample_id  => $line->sample_id,
-        center_id  => $center->id,
-        study_id   => $study->id,
-        pi_id      => $pi->id,
-        host_id    => $host->id,
-        project_id => $proj->id,
-        filename   => $line->filename,
-        run_dir    => $line->run_dir,
-        fullpath   => $line->fullpath,
-        year       => $line->year,
-        flagstat   => $line->flagstat,
+    if ($sample_rs->count == 0) {
+      $params->{ref_build} = $line->build;
+      $schema->resultset('Sample')->create($params);
+      say 'created new sample record ' . $line->sample_id;
+
+    } elsif ($sample_rs->count == 1) {
+      my $sample = $sample_rs->first;
+
+      if (not $sample->ref_build or not defined $sample->ref_build) {
+        $sample->update({ref_build => $line->build});
+        say 'updated ref_build for sample ' . $line->sample_id;
+
+      } elsif ($sample->ref_build ne $line->build) {
+        $sample->update({ref_build => $line->build});
+        say 'updated ref_build for sample ' . $line->sample_id;
       }
-    );
+
+    } else {
+      croak 'Found multple records for sample ' . $line->sample_id;
+    }
   }
 }
 
