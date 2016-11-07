@@ -295,20 +295,20 @@ sub execute {
       File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
-    my $params = {sample => $sample_obj};
-
+    ## no tidy
+    my $params     = {sample => $sample_obj};
     $params->{job} = {
-      procs    => $procs,
-      memory   => $memory,
-      walltime => $walltime,
-      build    => $build,
-      email    => $config->get($project, 'email'),
-      job_name => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
-      account => $config->get($cluster, 'account'),
-      workdir => $log_dir,
-      job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
-      nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
-      exclude_nodelist => join($COMMA, map{$_->name} $schema->resultset('Host')->search({name => {'!=' => 'csgspare'}})),
+      procs            => $procs,
+      memory           => $memory,
+      walltime         => $walltime,
+      build            => $build,
+      email            => $config->get($project, 'email'),
+      job_name         => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
+      account          => $config->get($cluster, 'account'),
+      workdir          => $log_dir,
+      job_dep_id       => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
+      nodelist         => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
+      exclude_nodelist => join($COMMA, map {$_->name} $schema->resultset('Host')->search({name => {'!=' => 'csgspare'}})),
       jobs_cnt         => $jobs,
     };
 
@@ -320,7 +320,7 @@ sub execute {
       tmp_dir         => $tmp_dir,
       job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
       pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
-      max_failed_runs => $config->get($project,         'max_failed_runs'),
+      max_failed_runs => $config->get($project, 'max_failed_runs'),
       out_dir         => $sample_obj->result_path,
       run_dir         => $run_dir,
       project_dir     => $project_dir,
@@ -334,16 +334,17 @@ sub execute {
     };
 
     $params->{gotcloud} = {
-      root     => $gotcloud_root,
-      conf     => $gotcloud_conf,
-      ref_dir  => $gotcloud_ref,
-      cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
-      samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
-      bam_util => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
-      bwa      => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
-      samblaster => File::Spec->join($gotcloud_root, '..', 'samblaster', 'bin', 'samblaster'), # TODO - need real path
+      root         => $gotcloud_root,
+      conf         => $gotcloud_conf,
+      ref_dir      => $gotcloud_ref,
+      cmd          => File::Spec->join($gotcloud_root, 'gotcloud'),
+      samtools     => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
+      bam_util     => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      bwa          => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
+      samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
       illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
     };
+    ## use tidy
 
     if ($step->name eq 'cloud-align') {
       if ($sample->fastqs->count) {
@@ -371,7 +372,7 @@ sub execute {
         my $rg_ref = {
           name  => $read_group,
           index => $rg_idx,
-          delay => 0, # int(rand($running_cnt + $rg_idx + $rg_cnt)),
+          delay => 0,
         };
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
