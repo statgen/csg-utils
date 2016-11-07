@@ -332,12 +332,16 @@ sub is_available {
   return $TRUE unless $result->processed_step($step);
 
   # XXX - don't bother with the rest of the tests if it's already complete
+  #
+  # TODO - this will be a problem for results that have been resubmitted to a previous step.
   return $FALSE if $result->completed_step($step);
 
   # XXX - if the current state is requested then it needs processing
   return $TRUE if $result->requested_step($step);
 
   # XXX - step is in flight but not completed or has failed
+  #
+  # TODO - make that a is_started or is_submitted test instead of a second processed_step
   return $FALSE if $result->processed_step($step);
 
   return $TRUE;
