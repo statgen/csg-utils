@@ -139,6 +139,11 @@ sub execute {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     my $logger = CSG::Mapper::Logger->new();
 
+    if ($sample->run_dir =~ /whi/i and $sample->center->name eq 'broad') {
+      $logger->info('skipping sample for broad WHI ' . $sample->sample_id) if $debug;
+      next;
+    }
+
     unless ($sample->is_available($step->name, $build)) {
       $logger->info('sample ' . $sample->sample_id . ' is not available for processing') if $debug;
       next;
