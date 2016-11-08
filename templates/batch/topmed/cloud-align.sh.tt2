@@ -80,12 +80,11 @@ $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.nam
   # TODO - flux deployment
 [% END -%]
 rc=0
-[% FOREACH read_group IN fastq.read_groups -%]
-[% FOREACH fastq IN files.keys -%]
-[% SET cram = files.$fastq -%]
+[% FOREACH file IN files.keys -%]
+[% SET cram = files.$file -%]
 [% SET flagstat = cram _ '.flagstat' -%]
 ### Begin: [% cram %]
-fastq_file=$(basename [% fastq %])
+fastq_file=$(basename [% file %])
 cram_file=$(basename [% cram %])
 
 if [[ -e [% cram %] && -e [% cram %].ok ]]; then
@@ -93,7 +92,7 @@ if [[ -e [% cram %] && -e [% cram %].ok ]]; then
   [% gotcloud.samtools %] flagstat [% cram %] > [% flagstat %]
 
   if [ $? -eq 0 ]; then
-    fastq_lines=$(zcat [% fastq %] | wc -l)
+    fastq_lines=$(zcat [% file %] | wc -l)
     fastq_reads=$(($fastq_lines / 4))
     cram_reads=$(grep 'paired in sequencing' [% flagstat %] | awk {'print $1'})
 
@@ -110,7 +109,7 @@ if [[ -e [% cram %] && -e [% cram %].ok ]]; then
         rc=1
       else
         $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
-        $MAPPER_UPDATE_CMD --fastq-complete [% fastq %]
+        $MAPPER_UPDATE_CMD --fastq-complete [% file %]
       fi
     else
       $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
@@ -126,7 +125,6 @@ else
 fi
 ### End: [% cram %]
 
-[% END -%]
 [% END -%]
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
