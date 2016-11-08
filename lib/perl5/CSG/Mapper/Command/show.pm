@@ -135,8 +135,8 @@ sub execute {
     my $step  = $self->{stash}->{step};
 
     for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
-      if ($step->name eq 'started') {
-        say $result->result->status_line() . 'JOBID: ' . $result->job->job_id;
+      if ($state->name =~ /started|submitted|cancelled|failed/) {
+        say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime() . ' JOBID: ' . $result->job->id;
       } else {
         say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime();
       }
