@@ -1,17 +1,27 @@
 package CSG::Mapper::Command::show;
 
 use CSG::Mapper -command;
-use CSG::Base qw(formats);
+use CSG::Base qw(formats file);
 use CSG::Constants;
 use CSG::Mapper::DB;
+use CSG::Mapper::Job;
+use CSG::Mapper::Sample;
 
 my $schema = CSG::Mapper::DB->new();
 
 sub opt_spec {
   return (
-    ['info',      'display basic job info'],
-    ['meta-id=i', 'job meta id'],
-    ['state|s=s', 'display results for a given state [submitted|requested|failed|cancelled|completed]'],
+    ['info',          'combined output of job and sample(for backward compatiblity)'],    # TODO - remove after old jobs clear queue
+    ['meta-id=i',     'job id for the meta data record (for backward compatibility)'],    # TODO - remove after old jobs clear queue
+    ['job-info=i',    'display basic job info for a job record (will search by db id or cluster job id)'],
+    ['sample-info=s', 'display all info on a given sample'],
+    ['result-info=s', 'display sample and result info for a given sample id'],
+    ['step=s',        'display results for a given step (e.g. bam2fastq, align)'],
+    ['state=s',       'display results for a given state (e.g. submitted, requested, failed)'],
+    ['stale',         'find any jobs that are no longer queued but still in a running state (i.e. started, submitted)'],
+    ['logs=s',        'display mapper logs for a sample'],
+    ['job-logs=s',    'display scheduler most recent job logs for sample (i.e. STDOUT/STDERR of a running job)'],
+    ['job-id=s',      'job id as assigned by the scheduler (e.g. slurm, torque)'],
     [
       'format=s',
       'output format (valid format: yaml|txt) [default: yaml]', {
@@ -29,79 +39,281 @@ sub opt_spec {
 sub validate_args {
   my ($self, $opts, $args) = @_;
 
-  if ($opts->{info}) {
-    unless ($opts->{meta_id}) {
-      $self->usage_error('meta-id is required');
+  if ($opts->{job_id}) {
+    my $job = $schema->resultset('Job')->find({job_id => $opts->{job_id}});
+    unless ($job) {
+      $self->usage_error('invalid job');
     }
+
+    $self->{stash}->{job} = $job;
+    $opts->{job_logs}     = $job->result->sample->sample_id;
+    $opts->{step}         = $job->results_states_steps->first->step->name;
   }
 
   if ($opts->{state}) {
-    unless ($schema->resultset('State')->find({name => $opts->{state}})) {
+    my $state = $schema->resultset('State')->find({name => $opts->{state}});
+    unless ($state) {
       $self->usage_error('invalid state');
+    }
+
+    $self->{stash}->{state} = $state;
+  }
+
+  if ($opts->{step}) {
+    my $step = $schema->resultset('Step')->find({name => $opts->{step}});
+    unless ($step) {
+      $self->usage_error('invalid step');
+    }
+
+    $self->{stash}->{step} = $step;
+  }
+
+  for (qw(sample_info result_info logs job_logs)) {
+    if (exists $opts->{$_}) {
+      my $sample = $schema->resultset('Sample')->find({sample_id => $opts->{$_}});
+
+      unless ($sample) {
+        say "invalid sample id $opts->{$_}"; exit 1; } 
+      $self->{stash}->{sample} = $sample;
+      last;
     }
   }
 }
 
 sub execute {
-  my ($self, $opts, $args) = @_;
-
+  my ($self, $opts, $args) = @_; 
   if ($opts->{info}) {
-    my $meta = $schema->resultset('Job')->find($opts->{meta_id});
-    return $self->_info($meta, $opts->{format});
+    my $job = $schema->resultset('Job')->find($opts->{meta_id});
+    $self->_dump($opts->{format}, $self->_job_info($job));
+
+    $self->{stash}->{sample} = $job->result->sample;
+    $self->_dump($opts->{format}, $self->_sample_info());
+  }
+
+  if ($opts->{job_info}) {
+    my $job = $schema->resultset('Job')->find($opts->{job_info});
+
+    unless ($job) {
+      $job = $schema->resultset('Job')->find({job_id => $opts->{job_info}});
+    }
+
+    unless ($job) {
+      say "unable to locate a job for jobid $opts->{job_info}";
+      exit 1;
+    }
+
+    my $info = $self->_job_info($job);
+    $self->_dump($opts->{format}, $info);
+  }
+
+  if ($opts->{sample_info}) {
+    my $info = $self->_sample_info();
+    $self->_dump($opts->{format}, $info);
+  }
+
+  if ($opts->{result_info}) {
+    my $info = $self->_sample_info();
+    $info->{sample}->{results} = $self->_result_info();
+    $self->_dump($opts->{format}, $info);
+  }
+
+  if ($opts->{stale}) {
+    return $self->_stale();
+  }
+
+  if ($opts->{logs}) {
+    return $self->_logs();
+  }
+
+  if ($opts->{job_logs}) {
+    return $self->_job_logs();
   }
 
   if ($opts->{state}) {
-    my $results = $schema->resultset('Result')->search(
-      {
-        'me.build'   => $self->app->global_options->{build},
-        'state.name' => $opts->{state},
-      }, {
-        join => 'state',
-      }
-    );
+    my $build = $self->app->global_options->{build};
+    my $state = $self->{stash}->{state};
+    my $step  = $self->{stash}->{step};
 
-    for my $result ($results->all()) {
-      say $result->status_line();
+    for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
+      if ($step->name eq 'started') {
+        say $result->result->status_line() . 'JOBID: ' . $result->job->job_id;
+      } else {
+        say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime();
+      }
     }
   }
 }
 
-sub _info {
-  my ($self, $meta, $format) = @_;
+sub _dump {
+  my ($self, $format, $data) = @_;
 
-  my $info = {
-    sample => {
-      id        => $meta->result->sample->id,
-      sample_id => $meta->result->sample->sample_id,
-      center    => $meta->result->sample->center->name,
-      study     => $meta->result->sample->study->name,
-      pi        => $meta->result->sample->pi->name,
-      host      => $meta->result->sample->host->name,
-      filename  => $meta->result->sample->filename,
-      run_dir   => $meta->result->sample->run_dir,
-      state     => $meta->result->state->name,
-      build     => $meta->result->build,
-      fullpath  => $meta->result->sample->fullpath,
-    },
-    job => {
-      id        => $meta->id,
-      job_id    => $meta->job_id,
-      cluster   => $meta->cluster,
-      procs     => $meta->procs,
-      memory    => $meta->memory,
-      walltime  => $meta->walltime,
-      node      => $meta->node,
-      delay     => $meta->delay,
-      submitted => ($meta->submitted_at) ? $meta->submitted_at->ymd . $SPACE . $meta->submitted_at->hms : $EMPTY,
-      created   => $meta->created_at->ymd . $SPACE . $meta->created_at->hms,
-    }
+  my $formats = {
+    txt  => sub {print Dumper shift},
+    yaml => sub {print Dump shift},
   };
 
-  if ($format eq 'txt') {
-    print Dumper $info;
-  } else {
-    print Dump($info);
+  croak 'invalid format' unless exists $formats->{$format};
+
+  $formats->{$format}->($data);
+
+  return;
+}
+
+sub _sample_info {
+  my ($self) = @_;
+
+  my $sample = $self->{stash}->{sample};
+  my $result = $sample->result_for_build($self->app->global_options->{build});
+  my $build  = ($result) ? $result->build : $self->app->global_options->{build};
+
+  my $sample_obj = CSG::Mapper::Sample->new(
+    cluster => $self->app->global_options->{cluster},
+    record  => $sample,
+    build   => $build,
+  );
+
+  return {
+    sample => {
+      id            => $sample->id,
+      sample_id     => $sample->sample_id,
+      center        => $sample->center->name,
+      study         => $sample->study->name,
+      pi            => $sample->pi->name,
+      host          => $sample->host->name,
+      filename      => $sample->filename,
+      run_dir       => $sample->run_dir,
+      fullpath      => $sample->fullpath,
+      out_dir       => $sample_obj->result_path,
+      run_dir       => $sample_obj->state_dir,
+      fastqs        => [
+        map +{
+          read_group => $_->read_group,
+          path       => $_->path,
+          align_at   => ($_->aligned_at) ? $_->aligned_at->datetime : undef,
+          created_at => $_->created_at->datetime,
+        }, $sample->fastqs
+      ],
+    }
+  };
+}
+
+sub _result_info {
+  my ($self) = @_;
+
+  my @results = ();
+  my $sample  = $self->{stash}->{sample};
+  my $result  = $sample->result_for_build($self->app->global_options->{build});
+
+  return [] unless $result;
+
+  for ($result->results_states_steps->all) {
+    push @results, {
+      job_id  => $_->job_id,
+      state   => $_->state->name,
+      step    => $_->step->name,
+      created => $_->created_at->datetime,
+      };
   }
+
+  return \@results;
+}
+
+sub _job_info {
+  my ($self, $job) = @_;
+
+  return {
+    job => {
+      id        => $job->id,
+      job_id    => $job->job_id,
+      result_id => $job->result->id,
+      sample    => $job->result->sample->sample_id,
+      cluster   => $job->cluster,
+      procs     => $job->procs,
+      memory    => $job->memory,
+      walltime  => $job->walltime,
+      node      => $job->node,
+      delay     => $job->delay,
+      tmp_dir   => $job->tmp_dir,
+      submitted => ($job->submitted_at) ? $job->submitted_at->ymd . $SPACE . $job->submitted_at->hms : $EMPTY,
+      started   => ($job->started_at) ? $job->started_at->ymd . $SPACE . $job->started_at->hms : $EMPTY,
+      created   => $job->created_at->ymd . $SPACE . $job->created_at->hms,
+    }
+  };
+}
+
+sub _stale {
+  my ($self) = @_;
+
+  my $step    = $self->{stash}->{step};
+  my $cluster = $self->app->global_options->{cluster};
+  my $build   = $self->app->global_options->{build};
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step($build, $step->name);
+
+  for my $result ($results->all) {
+    next unless $result->state->name eq 'started';
+    next unless $result->job->cluster eq $cluster;
+
+    my $job = CSG::Mapper::Job->new(
+      cluster => $cluster,
+      job_id  => $result->job->job_id
+    );
+
+    my $job_state = $job->state;
+    next if $job_state eq 'running';
+    say $result->result->status_line . 'JOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
+  }
+}
+
+sub _logs {
+  my ($self) = @_;
+  my $build  = $self->app->global_options->{build};
+  my $sample = $self->{stash}->{sample};
+
+  for my $log ($sample->logs($build)) {
+    say "[$log->{timestamp}] [$log->{step}:$log->{job_id}] [$log->{level}] $log->{message}";
+  }
+}
+
+sub _job_logs {
+  my ($self) = @_;
+
+  my $build   = $self->app->global_options->{build};
+  my $cluster = $self->app->global_options->{cluster};
+  my $sample  = $self->{stash}->{sample};
+  my $step    = $self->{stash}->{step};
+
+  unless ($step) {
+    say 'step is requried';
+    exit 1;
+  }
+
+  my $sample_obj = CSG::Mapper::Sample->new(
+    cluster => $cluster,
+    record  => $sample,
+    build   => $build,
+  );
+
+  my $log_formats = {
+    csg  => sub { return "slurm-$_[0].out"},
+    flux => sub { return "$_[1].o$_[0]"},
+  };
+
+  unless (exists $log_formats->{$cluster}) {
+    say 'unknown cluster log file format';
+    exit 1;
+  }
+
+  my $result   = $sample->results->find({build => $build});
+  my $job      = $result->current_status_for_step($step->name)->job;
+  my $filename = $log_formats->{$cluster}->($job->job_id, $sample->sample_id);
+  my $log_file = File::Spec->join($sample_obj->state_dir, $filename);
+
+  unless (-e $log_file) {
+    say "scheduler log file, $log_file, does not exist";
+    exit 1;
+  }
+
+  io($log_file)->slurp > io->stdout;
 
   return;
 }

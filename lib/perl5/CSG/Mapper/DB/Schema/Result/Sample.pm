@@ -96,6 +96,22 @@ __PACKAGE__->table("samples");
   data_type: 'text'
   is_nullable: 0
 
+=head2 year
+
+  data_type: 'integer'
+  is_nullable: 1
+
+=head2 flagstat
+
+  data_type: 'bigint'
+  is_nullable: 1
+
+=head2 ref_build
+
+  data_type: 'varchar'
+  is_nullable: 0
+  size: 45
+
 =head2 created_at
 
   data_type: 'datetime'
@@ -132,6 +148,12 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 45 },
   "fullpath",
   { data_type => "text", is_nullable => 0 },
+  "year",
+  { data_type => "integer", is_nullable => 1 },
+  "flagstat",
+  { data_type => "bigint", is_nullable => 1 },
+  "ref_build",
+  { data_type => "varchar", is_nullable => 0, size => 45 },
   "created_at",
   {
     data_type => "datetime",
@@ -174,6 +196,21 @@ __PACKAGE__->belongs_to(
   "CSG::Mapper::DB::Schema::Result::Center",
   { id => "center_id" },
   { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
+);
+
+=head2 fastqs
+
+Type: has_many
+
+Related object: L<CSG::Mapper::DB::Schema::Result::Fastq>
+
+=cut
+
+__PACKAGE__->has_many(
+  "fastqs",
+  "CSG::Mapper::DB::Schema::Result::Fastq",
+  { "foreign.sample_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
 );
 
 =head2 host
@@ -252,6 +289,107 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-27 15:27:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:vVLMrdJz8CBqfDGjhr+HqA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-11-07 08:16:17
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cb3gwdeEmCyvoXPns/OoNg
+
+use CSG::Constants;
+
+sub has_fastqs {
+  my ($self, $fastq) = @_;
+  return $self->search_related('fastqs')->search({path => $fastq})->count;
+}
+
+sub has_fastqs_with_unpaired_reads {
+  return shift->fastqs->search({path => {-not_like => '%interleaved%'}})->count;
+}
+
+sub result_for_build {
+  my ($self, $build) = @_;
+  return $self->results->find({build => $build});
+}
+
+sub current_state {
+  my ($self, $build) = @_;
+}
+
+sub is_requested {
+  my ($self, $step, $build) = @_;
+  my $result = $self->results->find({build => $build});
+
+  return $FALSE unless $result;
+  return $TRUE if $result->requested_step($step);
+}
+
+sub is_available {
+  my ($self, $step, $build) = @_;
+
+  my $result = $self->results->find({build => $build});
+
+  # XXX - no results at all
+  return $TRUE unless $result;
+
+  # XXX - no results for step at all
+  return $TRUE unless $result->processed_step($step);
+
+  # XXX - don't bother with the rest of the tests if it's already complete
+  #
+  # TODO - this will be a problem for results that have been resubmitted to a previous step.
+  return $FALSE if $result->completed_step($step);
+
+  # XXX - if the current state is requested then it needs processing
+  return $TRUE if $result->requested_step($step);
+
+  # XXX - step is in flight but not completed or has failed
+  #
+  # TODO - make that a is_started or is_submitted test instead of a second processed_step
+  return $FALSE if $result->processed_step($step);
+
+  return $TRUE;
+}
+
+sub read_groups {
+  return map {$_->read_group} shift->fastqs->search({}, {group_by => 'read_group'});
+}
+
+sub jobs_for_build {
+  my ($self, $build) = @_;
+
+  my $results = $self->result_for_build($build)->results_states_steps->search(
+    {},
+    {
+      group_by => 'job_id',
+      order_by => 'id desc'
+    }
+  );
+
+  return $self->result_source->schema->resultset('Job')->search(
+    {
+      id => {'=' => [map {$_->job_id} $results->all]},
+    },
+    {
+      order_by => 'id asc',
+    }
+  );
+}
+
+sub logs {
+  my ($self, $build) = @_;
+
+  my @logs = ();
+  for my $job ($self->jobs_for_build($build)) {
+    my $step   = $job->results_states_steps->first->step->name;
+    my $job_id = $job->job_id;
+
+    push @logs, map +{
+      job_id    => $job_id,
+      step      => $step,
+      level     => uc($_->level),
+      message   => $_->message,
+      timestamp => $_->timestamp->strftime('%x %X'),
+    }, $job->logs;
+  }
+
+  return wantarray ? @logs : \@logs;
+}
+
 1;

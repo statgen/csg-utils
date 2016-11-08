@@ -4,11 +4,17 @@ use CSG::Mapper -command;
 use CSG::Base;
 use CSG::Mapper::DB;
 
+use Text::ASCIITable;
+
+my $schema  = CSG::Mapper::DB->new();
+
 sub opt_spec {
   return (
-    ['job-id=s',  'job to provide stats for'],
-    ['time-left', 'calculate time remaining in hours for a given jobid'],
-    ['totals',    'various counts'],
+    ['job-id=s',       'job to provide stats for'],
+    ['time-left',      'calculate time remaining in hours for a given jobid'],
+    ['totals',         'various counts'],
+    ['step|s=s',       'step a result is in'],
+    ['avg-job-time=s', 'average job run time for a given step']
   );
 }
 
@@ -30,6 +36,10 @@ sub execute {
   if ($opts->{totals}) {
     $self->_totals($self->app->global_options->{build});
   }
+
+  if ($opts->{avg_job_time}) {
+    $self->_avg_job($opts->{avg_job_time});
+  }
 }
 
 sub _time_left {
@@ -46,26 +56,51 @@ sub _time_left {
 sub _totals {
   my ($self, $build) = @_;
 
-  my $schema  = CSG::Mapper::DB->new();
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
-  my $total     = $project->samples->count;
-  my $completed = $schema->resultset('Result')->completed($build)->count;
-  my $failed    = $schema->resultset('Result')->failed($build)->count;
-  my $running   = $schema->resultset('Result')->started($build)->count;
-  my $submitted = $schema->resultset('Result')->submitted($build)->count;
-  my $cancelled = $schema->resultset('Result')->cancelled($build)->count;
-  my $requested = $schema->resultset('Result')->requested($build)->count;
+  my $table   = Text::ASCIITable->new({headingText => 'Total Samples: ' . $project->samples->count});
+  my @columns = (qw(requested submitted started completed cancelled failed));
+  $table->setCols(('Step', map {ucfirst($_)} @columns));
 
-  print << "EOF"
-Completed:  $completed
-Submitted:  $submitted
-Requested:  $requested
-Cancelled:  $cancelled
-Failed:     $failed
-----------
-Total:      $total
-EOF
+  for my $step ($schema->resultset('Step')->all) {
+    my %totals = map {$_ => 0} @columns;
+    for my $col (@columns) {
+      $totals{$col} = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $col)->count;
+    }
+
+    $table->addRow($step->name, @totals{@columns});
+  }
+
+  $table->addRowLine();
+
+  print $table;
+
+  return;
+}
+
+sub _avg_job {
+  my ($self, $step) = @_;
+
+  my $time    = 0;
+  my $build   = $self->app->global_options->{build};
+  my $results = $schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step, 'completed');
+
+  unless ($results->count) {
+    say "No results found for $step";
+    return;
+  }
+
+  for my $result ($results->all) {
+    my $started  = $result->job->started_at;
+    my $ended    = $result->job->ended_at;
+
+    next unless $started and $ended;
+    my $duration = $ended - $started;
+
+    $time += $duration->in_units('hours');
+  }
+
+  printf "Average job run time for %s is: %.2f hrs\n", $step, ($time / $results->count);
 }
 
 1;

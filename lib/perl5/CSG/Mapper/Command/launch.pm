@@ -14,19 +14,23 @@ my $schema = CSG::Mapper::DB->new();
 
 sub opt_spec {
   return (
-    ['limit|l=i',    'Limit number of jobs to submit'],
-    ['procs|p=i',    'Number of cores to request'],
-    ['memory|m=i',   'Amount of memory to request, in MB'],
-    ['walltime|w=i', 'Amount of wallclock time for this job'],
-    ['delay=i',      'Amount of time to delay exection in seconds'],
-    ['meta-id=i',    'Job meta record for parent job'],
-    ['tmp-dir=s',    'Where to write fastq files'],
+    ['limit|l=i',         'Limit number of jobs to submit'],
+    ['procs|p=i',         'Number of cores to request'],
+    ['memory|m=i',        'Amount of memory to request, in MB'],
+    ['walltime|w=s',      'Amount of wallclock time for this job'],
+    ['delay=i',           'Amount of time to delay exection in seconds'],
+    ['meta-id=i',         'Job meta record for parent job'],
+    ['tmp-dir=s',         'Where to write fastq files'],
+    ['sample=s',          'Sample id to submit (e.g. NWD123456)'],
+    ['exclude-host=s@',   'Exclude samples that would fall on a specific host(s) (e.g. topmed3, topmed4)'],
+    ['exclude-center=s@', 'Exclude samples that came from specific center(s) (e.g. illumina)'],
+    ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|all)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|align|all/},
+          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
         }
       }
     ], [
@@ -89,35 +93,81 @@ sub execute {
   ## no tidy
   my $procs = ($opts->{procs})
     ? $opts->{procs}
-    : ($config->get($cluster, $step->name . '_procs'))
-      ? $config->get($cluster, $step->name . '_procs')
-      : $config->get($project, 'procs');
+    : ($config->get($project, $step->name . '_procs'))
+      ? $config->get($project, $step->name . '_procs')
+      : $config->get($cluster, $step->name . '_procs');
 
   my $memory = ($opts->{memory})
     ? $opts->{memory}
-    : ($config->get($cluster, $step->name . '_memory'))
-      ? $config->get($cluster, $step->name . '_memory')
-      : $config->get($project, 'memory');
+    : ($config->get($project, $step->name . '_memory'))
+      ? $config->get($project, $step->name . '_memory')
+      : $config->get($cluster, $step->name . '_memory');
 
   my $walltime = ($opts->{walltime})
     ? $opts->{walltime}
-    : ($config->get($cluster, $step->name . '_walltime'))
-      ? $config->get($cluster, $step->name . '_walltime')
-      : $config->get($project, 'walltime');
+    : ($config->get($project, $step->name . '_walltime'))
+      ? $config->get($project, $step->name . '_walltime')
+      : $config->get($cluster, $step->name . '_walltime');
   ## use tidy
 
-  my @samples      = ();
+
+  my $search       = {};
+  my $attrs        = {order_by => 'RAND()'};
   my $dep_job_meta = $self->{stash}->{meta};
+
   if ($dep_job_meta) {
-    push @samples, $dep_job_meta->result->sample;
+    $search->{id} = $dep_job_meta->result->sample->id;
+    $attrs = {};
+
+  } elsif ($opts->{sample}) {
+    $search->{sample_id} = $opts->{sample};
+    $attrs = {};
+
   } else {
-    @samples = $schema->resultset('Sample')->search({}, {order_by => 'RAND()'});
+    if ($opts->{exclude_host}) {
+      $search->{'host.name'} = {-not_in => $opts->{exclude_host}};
+      push @{$attrs->{join}}, 'host';
+    }
+
+    if ($opts->{exclude_center}) {
+      $search->{'center.name'} = {-not_in => $opts->{exclude_center}};
+      push @{$attrs->{join}}, 'center';
+    }
   }
 
-  for my $sample (@samples) {
+  for my $sample ($schema->resultset('Sample')->search($search, $attrs)) {
     last if $opts->{limit} and $jobs >= $opts->{limit};
+    my $logger = CSG::Mapper::Logger->new();
 
-    my $logger     = CSG::Mapper::Logger->new();
+    if ($sample->run_dir =~ /whi/i and $sample->center->name eq 'broad') {
+      $logger->info('skipping sample for broad WHI ' . $sample->sample_id) if $debug;
+      next;
+    }
+
+    unless ($sample->is_available($step->name, $build)) {
+      $logger->info('sample ' . $sample->sample_id . ' is not available for processing') if $debug;
+      next;
+    }
+
+    if ($opts->{requested}) {
+      unless ($sample->is_requested($step->name, $build)) {
+        $logger->info('sample ' . $sample->sample_id . ' is not in requested state') if $debug;
+        next;
+      }
+    }
+
+    if ($step->name =~ /(?:cloud|local)\-align/) {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample ' . $sample->sample_id) if $debug;
+        next;
+      }
+
+      if ($sample->has_fastqs_with_unpaired_reads) {
+        $logger->debug('found unpaired reads in the fastqs for sample ' . $sample->sample_id) if $debug;
+        next;
+      }
+    }
+
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $cluster,
       record  => $sample,
@@ -126,18 +176,21 @@ sub execute {
 
     try {
       $sample_obj->incoming_path;
+      $logger->debug('incoming_path: ' . $sample_obj->incoming_path) if $debug;
     }
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::NotFound')) {
         $logger->error($_->description);
-        $logger->debug('bam_path: ' . $_->bam_path)   if $debug;
-        $logger->debug('cram_path: ' . $_->cram_path) if $debug;
+        $logger->error('bam_path: ' . $_->bam_path);
+        $logger->error('cram_path: ' . $_->cram_path);
+
       } elsif ($_->isa('CSG::Mapper::Exceptions::Sample::SlotFailed')) {
         $logger->error($_->error);
+
       } else {
         if ($_->isa('Exception::Class')) {
           chomp(my $error = $_->error);
@@ -147,52 +200,45 @@ sub execute {
           print STDERR Dumper $_ if $debug;
         }
       }
-    }
-    finally {
-      unless (@_) {
-        $logger->debug('incoming_path: ' . $sample_obj->incoming_path) if $debug;
-      }
     };
 
     next unless $sample_obj->has_incoming_path;
 
-    my $result = $sample->results->search({build => $build})->first;
     my $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $sample->sample_id);
 
     if ($opts->{step} eq 'all') {
       $tmp_dir = File::Spec->join($base_tmp_dir, $project, $sample_obj->build_str, $opts->{step});
     }
 
+    my $result = $schema->resultset('Result')->find(
+      {
+        sample_id => $sample->id,
+        build     => $build,
+      }
+    );
+
     unless ($dep_job_meta) {
       unless ($result) {
-        $result = $sample->add_to_results(
-          {
-            build    => $build,
-            state_id => $schema->resultset('State')->find({name => 'requested'})->id,
-          }
-        );
+        $result = $sample->add_to_results({build => $build});
       }
-
-      next if $result->state->name ne 'requested';
-      next if $result->build ne $build;
     }
 
     my $delay = $opts->{delay} // int(rand($MAX_DELAY));
-    my $job_meta = $result->add_to_jobs(
+    my $job_meta = $schema->resultset('Job')->create(
       {
         cluster  => $cluster,
         procs    => $procs,
         memory   => $memory,
         walltime => $walltime,
         delay    => $delay,
-        step_id  => $step->id,
+        tmp_dir  => $tmp_dir,
       }
     );
 
     $logger->job_id($job_meta->id);
 
     unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir');
+      $logger->debug('creating out_dir') if $debug;
       make_path($sample_obj->result_path);
     }
 
@@ -232,67 +278,133 @@ sub execute {
       File::Spec->join($project_dir, $config->get('gotcloud', 'gotcloud_conf') . $PERIOD . $sample_obj->build_str);
     $logger->debug("gotcloud conf: $gotcloud_conf") if $debug;
     unless (-e $gotcloud_conf) {
-      croak qq{Unable to locate GOTCLOUD_CONF [$gotcloud_conf]};
+      $logger->critical(qq{Unable to locate GOTCLOUD_CONF [$gotcloud_conf]});
+      exit 1;
     }
 
     my $gotcloud_root = File::Spec->join($basedir, $config->get($cluster, 'gotcloud_root'));
     $logger->debug("gotcloud root: $gotcloud_root") if $debug;
     unless (-e $gotcloud_root) {
-      croak qq{GOTCLOUD_ROOT [$gotcloud_root] does not exist!};
+      $logger->critical(qq{GOTCLOUD_ROOT [$gotcloud_root] does not exist!});
+      exit 1;
     }
 
     my $gotcloud_ref = File::Spec->join($prefix, $config->get('gotcloud', qq{build${build}_ref_dir}));
     $logger->debug("gotcloud ref_dir: $gotcloud_ref") if $debug;
     unless (-e $gotcloud_ref) {
-      croak qq{GOTCLOUD_REF_DIR [$gotcloud_ref] does not exist!};
+      $logger->critical(qq{GOTCLOUD_REF_DIR [$gotcloud_ref] does not exist!});
+      exit 1;
     }
 
     my $job_file =
-      File::Spec->join($run_dir, join($DASH, ($sample_obj->sample_id, $step->name, $sample_obj->build_str, $cluster . '.sh')));
+      File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
-    $tt->process(
-      $step->name . q{.sh.tt2}, {
-        job => {
-          procs    => $procs,
-          memory   => $memory,
-          walltime => $walltime,
-          build    => $build,
-          email    => $config->get($project, 'email'),
-          job_name => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
-          account => $config->get($cluster, 'account'),
-          workdir => $log_dir,
-          job_dep_id => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
-          nodelist   => ($dep_job_meta) ? $dep_job_meta->node   : undef,
-        },
-        settings => {
-          tmp_dir         => $tmp_dir,
-          job_log         => File::Spec->join($sample_obj->result_path, 'job-' . $step->name . '.yml'),
-          pipeline        => $config->get('pipelines', $sample_obj->center),
-          max_failed_runs => $config->get($project, 'max_failed_runs'),
-          out_dir         => $sample_obj->result_path,
-          run_dir         => $run_dir,
-          project_dir     => $project_dir,
-          delay           => $delay,
-          threads         => $procs,
-          meta_id         => $job_meta->id,
-          mapper_cmd      => File::Spec->join($project_dir, $PROGRAM_NAME),
-          cluster         => $cluster,
-          project         => $project,
-          next_step       => $opts->{next_step},
-        },
-        gotcloud => {
-          root     => $gotcloud_root,
-          conf     => $gotcloud_conf,
-          ref_dir  => $gotcloud_ref,
-          cmd      => File::Spec->join($gotcloud_root, 'gotcloud'),
-          samtools => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
-        },
-        sample => $sample_obj,
-      },
-      $job_file
-      )
-      or die $tt->error();
+    ## no tidy
+    my $params     = {sample => $sample_obj};
+    $params->{job} = {
+      procs            => $procs,
+      memory           => $memory,
+      walltime         => $walltime,
+      build            => $build,
+      email            => $config->get($project, 'email'),
+      job_name         => join($DASH, ($project, $step->name, $sample_obj->build_str, $sample_obj->sample_id)),
+      account          => $config->get($cluster, 'account'),
+      workdir          => $log_dir,
+      job_dep_id       => ($dep_job_meta) ? $dep_job_meta->job_id : undef,
+      nodelist         => ($dep_job_meta) ? $dep_job_meta->node   : $sample->host->name,
+      exclude_nodelist => join($COMMA, map {$_->name} $schema->resultset('Host')->search({name => {'!=' => 'csgspare'}})),
+      jobs_cnt         => $jobs,
+    };
+
+    if ($params->{job}->{nodelist} eq 'csgspare') {
+      $params->{job}->{nodelist} = 'topmed';
+    }
+
+    $params->{settings} = {
+      tmp_dir         => $tmp_dir,
+      job_log         => File::Spec->join($log_dir, 'job-info-' . $step->name . '-' . $cluster . '.yml'),
+      pipeline        => $config->get('pipelines', $sample_obj->center) // $config->get('pipelines', 'default'),
+      max_failed_runs => $config->get($project, 'max_failed_runs'),
+      out_dir         => $sample_obj->result_path,
+      run_dir         => $run_dir,
+      project_dir     => $project_dir,
+      delay           => $delay,
+      threads         => $procs,
+      meta_id         => $job_meta->id,
+      mapper_cmd      => $PROGRAM_NAME,
+      cluster         => $cluster,
+      project         => $project,
+      next_step       => $opts->{next_step},
+    };
+
+    $params->{gotcloud} = {
+      root         => $gotcloud_root,
+      conf         => $gotcloud_conf,
+      ref_dir      => $gotcloud_ref,
+      cmd          => File::Spec->join($gotcloud_root, 'gotcloud'),
+      samtools     => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
+      bam_util     => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      bwa          => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
+      samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
+      illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
+    };
+    ## use tidy
+
+    if ($step->name eq 'cloud-align') {
+      if ($sample->fastqs->count) {
+        $params->{job}->{tmp_dir} = dirname($sample->fastqs->first->path);
+        $job_meta->update({tmp_dir => $params->{job}->{tmp_dir}});
+
+        my $path  = Path::Class->file($params->{job}->{tmp_dir});
+        my @comps = $path->components();
+        my $idx   = ($cluster eq 'csg') ? 3 : 4;
+
+        $params->{job}->{nodelist} = $comps[$idx];
+      }
+
+      # XXX - if we want the delay to be based on all running jobs for this step
+      #       may need to make it submitted rather than running though.
+      #
+      # my $running_cnt  = $schema->resultset('ResultsStatesStep')->running_by_step($build, $step->name)->count;
+      # $logger->debug("running samples: $running_cnt") if $debug;
+      # $params->{job}->{jobs_cnt} = $running_cnt + 1;
+
+      my $rg_idx = 0;
+      for my $read_group ($sample->read_groups) {
+        push @{$params->{fastq}->{indexes}}, $rg_idx;
+
+        my $rg_ref = {
+          name  => $read_group,
+          index => $rg_idx,
+          delay => 0,
+        };
+
+        for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
+          my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
+          my $cram = File::Spec->join($path, qq{$name.cram});
+
+          if ($fastq->path =~ /_interleaved\.fastq\.gz$/) {
+            $rg_ref->{paired}->{$fastq->path} = $cram;
+          } else {
+            $rg_ref->{unpaired}->{$fastq->path} = $cram;
+          }
+        }
+
+        $rg_idx++;
+        push @{$params->{fastq}->{read_groups}}, $rg_ref;
+      }
+    } elsif ($step->name eq 'local-align') {
+      unless ($sample->fastqs->count) {
+        $logger->debug('no fastq files recorded for sample') if $verbose;
+        next;
+      }
+
+      # TODO - going to do stack all the fastqs as tasks within a single job.
+      #        this makes life much simpler.
+    }
+
+    $tt->process($step->name . q{.sh.tt2}, $params, $job_file) or die $tt->error();
 
     $logger->debug("wrote batch file to $job_file") if $debug;
 
@@ -305,8 +417,17 @@ sub execute {
 
     try {
       $job->submit($job_file);
+
       $logger->info('submitted job (' . $job->job_id . ') for sample ' . $sample_obj->sample_id) if $verbose;
-      $result->update({state_id => $schema->resultset('State')->find({name => 'submitted'})->id});
+
+      $result->add_to_results_states_steps(
+        {
+          state_id => $schema->resultset('State')->find({name => 'submitted'})->id,
+          step_id  => $step->id,
+          job_id   => $job_meta->id,
+        }
+      );
+
       $job_meta->update(
         {
           job_id       => $job->job_id(),
@@ -317,7 +438,7 @@ sub execute {
     catch {
       if (not ref $_) {
         $logger->critical('Uncaught exception');
-        $logger->debug($_) if $debug;
+        $logger->error($_);
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::BatchFileNotFound')) {
         $logger->error($_->description);
@@ -330,7 +451,7 @@ sub execute {
 
       } elsif ($_->isa('CSG::Mapper::Exceptions::Job::ProcessOutput')) {
         $logger->error($_->description);
-        $logger->debug($_->output) if $debug;
+        $logger->error($_->output);
 
       } else {
         if ($_->isa('Exception::Class')) {

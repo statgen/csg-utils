@@ -54,57 +54,36 @@ if [ ! -e $OUT_DIR ]; then
   exit 1
 fi
 
-$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %]
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %]
 $MAPPER_LOG_CMD --message 'begining gotcloud alignment'
 
-[% gotcloud.cmd %] align \
-  --gcroot       [% gotcloud.root %] \
-  --conf         [% gotcloud.conf %] \
-  --threads      [% settings.threads %] \
-  --outdir       $OUT_DIR \
-  --fastqlist    ${TMP_DIR}/fastq.list \
-  --override     "TMP_DIR=$TMP_DIR" \
-  --ref_dir      [% gotcloud.ref_dir %] \
-  --maxlocaljobs [% settings.threads %]
+export REF_PATH=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+
+[% FOREACH target IN fastq.targets -%]
+[% FOREACH file IN target.files -%]
+
+[% gotcloud.bwa %] mem -t [% job.procs %] -K 100000000 -Y -p -R '[% target.read_group %]' [% gotcloud.ref_dir %]/hs38DH.fa [% file %] \
+  | [% gotcloud.samblaster %] -a --addMateTags \
+  | [% gotcloud.sammtools %] view -@ [% job.procs %] -T [% gotcloud.ref_dir %]/hs38DH.fa -C -o [% target.output %].cram -
 
 rc=$?
-$MAPPER_LOG_CMD --message "align_rc: $rc"
+
+if [ "$rc" -eq 0 ]; then
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  $MAPPER_LOG_CMD --message 'alignment completed for [% file %]'
+else
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+  $MAPPER_LOG_CMD --message "alignment failed with exit code '$rc' for fastq [% file %]" --level critical
+
+  exit $rc
+fi
+[% END -%]
+[% END -%]
 
 if [ "$rc" -eq 0 ]; then
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
   $MAPPER_LOG_CMD --message 'alignment completed'
-  $MAPPER_LOG_CMD --message "purging $TMP_DIR on $NODELIST"
-  rm -rf $TMP_DIR
-else
-  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
-  $MAPPER_LOG_CMD --message "alignment failed with exit code $rc" --level critical
-
-  if [ ! -e $RUN_DIR ]; then
-    $MAPPER_LOG_CMD --message 'RUN_DIR does not exist' --level critical
-    exit $rc
-  fi
-
-  mv $TMP_DIR $RUN_DIR
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --mesage 'failed to move TMP_DIR to RUN_DIR' --level critical
-    exit $rc
-  fi
-
-  max_runs=[% settings.max_failed_runs %]
-  run_count=$(find $RUN_DIR -maxdepth 1 -type d|wc -l)
-  runs=$(find $RUN_DIR/* -maxdepth 1 -type d|sort)
-
-  if [ $run_count -gt $max_runs ]; then
-    count=0
-    for run in $runs; do
-      if [ $(($run_count - $max_runs)) -gt $count ]; then
-        $MAPPER_LOG_CMD --message "purging sample [$(basename $run)] from RUN_DIR"
-        rm -rf $run
-      fi
-
-      count=$(($count + 1))
-    done
-  fi
 fi
 
 exit $rc

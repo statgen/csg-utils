@@ -14,6 +14,8 @@ our @EXPORT = (
     $PIPE
     $DASH
     $SPACE
+    $TAB
+    $COLON
     $TIMEZONE
     )
 );
@@ -29,11 +31,15 @@ our @EXPORT_OK = (
     $PIPE
     $DASH
     $SPACE
+    $TAB
+    $COLON
     $MAX_DELAY
     $TIMEZONE
     $VALID_CLUSTER_REGEXPS
+    $FASTQ_SUFFIX
     %CLUSTER_MAP
     @TIME_FORMAT_REGEXPS
+    @READ_GROUP_FIELDS
     )
 );
 
@@ -49,11 +55,15 @@ our %EXPORT_TAGS = (
       $PIPE
       $DASH
       $SPACE
+      $TAB
+      $COLON
       $TIMEZONE
       $VALID_CLUSTER_REGEXPS
+      $FASTQ_SUFFIX
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
+      @READ_GROUP_FIELDS
       )
   ],
   basic => [
@@ -67,14 +77,18 @@ our %EXPORT_TAGS = (
       $PIPE
       $DASH
       $SPACE
+      $TAB
+      $COLON
       )
   ],
   mapping => [
     qw(
       $VALID_CLUSTER_REGEXPS
+      $FASTQ_SUFFIX
       %CLUSTER_MAP
       $MAX_DELAY
       @TIME_FORMAT_REGEXPS
+      @READ_GROUP_FIELDS
       )
   ],
 );
@@ -88,16 +102,20 @@ Readonly::Scalar our $FALSE      => q{0};
 Readonly::Scalar our $PIPE       => q{|};
 Readonly::Scalar our $DASH       => q{-};
 Readonly::Scalar our $SPACE      => q{ };
+Readonly::Scalar our $TAB        => qq{\t};
+Readonly::Scalar our $COLON      => q{:};
 Readonly::Scalar our $TIMEZONE   => q{America/Detroit};
 
 Readonly::Scalar our $MAX_DELAY             => 120;
 Readonly::Scalar our $VALID_CLUSTER_REGEXPS => qr{csg|flux};
+Readonly::Scalar our $FASTQ_SUFFIX          => q{.fastq.gz};
 
 Readonly::Hash our %CLUSTER_MAP => (
   'red hat' => 'flux',
   'ubuntu'  => 'csg',
 );
 
+Readonly::Array our @READ_GROUP_FIELDS   => (qw(ID PL PU LB DS DT SM CN));
 Readonly::Array our @TIME_FORMAT_REGEXPS => (
 
   # dd-hh:mm:ss or dd:hh:mm:ss

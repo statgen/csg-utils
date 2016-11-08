@@ -1,5 +1,7 @@
 language: perl
 perl:
+  - "5.18.2"
+  - "5.16.3"
   - "5.14.2"
   - "5.10.1"
 before_install:
@@ -16,6 +18,7 @@ env:
     - SLOTS_DB_HOST="127.0.0.1"
     - SLOTS_DB_USER="travis"
     - SLOTS_DB_PASS=""
+    - CSG_MAPPING_CONF="$HOME/build/statgen/csg-utils/config/mapping.ini"
 branches:
   only:
     - master

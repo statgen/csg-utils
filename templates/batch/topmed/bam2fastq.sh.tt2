@@ -1,16 +1,17 @@
 #!/bin/sh
-
 [% IF settings.cluster == 'csg' -%]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=[% job.procs %]
 #SBATCH --mem=[% job.memory %]
-#SBATCH --gres=tmp:200
+#SBATCH --gres=tmp:100
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
 #SBATCH --partition=topmed
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
+#SBATCH --nodes=1-1
+#SBATCH --exclude=[% job.exclude_nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -18,7 +19,7 @@ NODELIST=$SLURM_JOB_NODELIST
 #PBS -l nodes=1:ppn=[% job.procs %]
 #PBS -l walltime=[% job.walltime %]
 #PBS -l pmem=[% job.memory %]gb
-#PBS -l ddisk=200gb
+#PBS -l ddisk=100gb
 #PBS -m a
 #PBS -d [% job.workdir %]
 #PBS -M [% job.email %]
@@ -33,120 +34,116 @@ JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
 [% END -%]
 
-META_ID=[% settings.meta_id %]
-MAPPER_CMD=[% settings.mapper_cmd %]
-MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
-
-TMP_DIR=[% settings.tmp_dir %]
-RUN_DIR=[% settings.run_dir %]
+set -eu -o pipefail
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
 export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 
-$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step bam2fastq
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step bam2fastq"
+TMP_DIR=[% settings.tmp_dir %]
 
-$MAPPER_LOG_CMD --message 'starting remapping pipeline'
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
+$MAPPER_LOG_CMD --message 'starting bam2fastq'
 
 if [ -e $TMP_DIR ]; then
-  $MAPPER_LOG_CMD --message 'removing existing TMP_DIR'
+  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
   rm -rf $TMP_DIR
 fi
 
-$MAPPER_LOG_CMD --message 'creating TMP_DIR'
+JOB_TMP_DIR=/tmp/[% settings.project %]/$JOB_ID
+$MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
+mkdir -p $JOB_TMP_DIR
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
 mkdir -p $TMP_DIR
 
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to create TMP_DIR' --level critical
+  $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
 
-$MAPPER_LOG_CMD --message 'setting permissions on TMP_DIR'
+$MAPPER_LOG_CMD --message "setting permissions on TMP_DIR $TMP_DIR"
 chmod 750 $TMP_DIR
 
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to set permissions on TMP_DIR' --level critical
+  $MAPPER_LOG_CMD --message "failed to set permissions on TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
-
-$MAPPER_LOG_CMD --message 'creating bam.list'
-echo "[% sample.sample_id %] [% sample.incoming_path %]" > "${TMP_DIR}/bam.list"
 
 $MAPPER_LOG_CMD --message "delaying execution for [% settings.delay %] minutes"
 sleep "[% settings.delay %]m"
 
-$MAPPER_CMD show --meta-id $META_ID --info > [% settings.job_log %]
-$MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
-[% gotcloud.cmd %] pipe \
-  --gcroot  [% gotcloud.root %] \
-  --name    [% settings.pipeline %] \
-  --conf    [% gotcloud.conf %] \
-  --numjobs 1 \
-  --ref_dir [% gotcloud.ref_dir %] \
-  --outdir  $TMP_DIR
+$MAPPER_LOG_CMD --message 'generating flagstat for src cram [% sample.incoming_path %]'
+flagstat_file=[% job.workdir %]/[% sample.sample_id %].src.flagstat
+[% gotcloud.samtools %] flagstat [% sample.incoming_path %] > $flagstat_file
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to generate flagstat for sample [% sample.incoming_path %]' --level critical
+  exit 1
+fi
+
+rc=0
+$MAPPER_LOG_CMD --message 'beginning bam2fastq pipeline'
+export REF_CACHE=[% gotcloud.ref_dir %]/../hg38/md5/%2s/%2s/%s
+[% IF sample.center == 'illumina' && sample.ref_build == '37' -%]
+[% gotcloud.samtools %] view -uh -F 0x900 -T [% gotcloud.illumina_ref %] [% sample.incoming_path %] \
+[% ELSE -%]
+[% gotcloud.samtools %] view -uh -F 0x900 [% sample.incoming_path %] \
+[% END -%]
+  | [% gotcloud.bam_util %] squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
+  | [% gotcloud.samtools %] sort -l 1 -@ [% job.procs %] -m 4000M -n -T $JOB_TMP_DIR - \
+  | [% gotcloud.samtools %] fixmate - - \
+  | [% gotcloud.bam_util %] bam2fastq --in -.bam --outBase ${TMP_DIR}/[% sample.sample_id %] --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip 2> ${TMP_DIR}/fastq.log
 
 rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 
-if [ "$rc" -eq 0 ]; then
-  $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
-  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
 
-  [% IF settings.pipeline == 'cleanUpBam2fastq' -%]
-  if [ "$rc" -eq 0 ]; then
-    $MAPPER_LOG_CMD --message "puring temporary fastq files from [% settings.pipeline %]"
-    rm -rf ${TMP_DIR}/fastqs/tmp.cleanUpBam
+  fastq_lines=0
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ2); do
+    fastq_lines=$(( $fastq_lines + $(zcat $fastq | wc -l) ))
+  done
 
-    cleanup_rc=$?
-    if [ "$cleanup_rc" -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to delete temporary fastq files from [% settings.pipeline %]"
-      $MAPPER_UPDATE_CMD --state failed --exit-code $cleanup_rc
-      exit 1
+  fastq_reads=$(( $fastq_lines / 4 ))
+  cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+  if [ $fastq_reads -eq $cram_reads ]; then
+    $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+    $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+    if [ $? -ne 0 ]; then
+      $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+      rc=1
     fi
-  fi
-  [% END -%]
-
-  [% IF settings.next_step == 'align' -%]
-  $MAPPER_CMD launch --verbose --project [% settings.project %] --cluster [% settings.cluster %] --meta-id $META_ID --step align
-  [% END %]
-else
-  $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
-  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
-
-  if [ ! -e $RUN_DIR ]; then
-    $MAPPER_LOG_CMD --message 'RUN_DIR does not exist' --level critical
-    exit $rc
-  fi
-
-  $MAPPER_LOG_CMD --message 'moving TMP_DIR to RUN_DIR'
-  mv $TMP_DIR $RUN_DIR
-
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --mesage 'failed to move TMP_DIR to RUN_DIR' --level critical
-    exit $rc
-  fi
-
-  max_runs=[% settings.max_failed_runs %]
-  run_count=$(find $RUN_DIR -maxdepth 1 -type d|wc -l)
-  runs=$(find $RUN_DIR/* -maxdepth 1 -type d|sort)
-
-  if [ $run_count -gt $max_runs ]; then
-    count=0
-    for run in $runs; do
-      if [ $(($run_count - $max_runs)) -gt $count ]; then
-        $MAPPER_LOG_CMD --message "purging sample [$(basename $run)] from RUN_DIR"
-        rm -rf $run
-      fi
-
-      count=$(($count + 1))
-    done
+  else
+    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    rc=1
   fi
 fi
 
-exit $rc
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+else
+  $MAPPER_LOG_CMD --message "[% settings.pipeline %] failed with exit code $rc" --level critical
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+fi
 
-# vi: ft=sh
+exit $rc

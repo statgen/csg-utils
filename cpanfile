@@ -12,6 +12,7 @@ requires 'Exception::Class';
 requires 'Module::Load';
 requires 'Number::Bytes::Human';
 requires 'IO::Prompter';
+requires 'Text::ASCIITable';
 
 requires 'Moose';
 requires 'MooseX::AbstractFactory';
@@ -41,6 +42,7 @@ requires 'File::Stat';
 requires 'File::Spec';
 requires 'Filesys::DiskUsage';
 requires 'Path::Class';
+requires 'Path::Tiny';
 
 on 'test' => sub {
   requires 'SQL::Translator';

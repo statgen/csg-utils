@@ -1,7 +1,8 @@
 package CSG::Storage::SlotCtl::Command::delete_slot;
 
 use CSG::Storage::SlotCtl -command;
-use CSG::Base;
+use CSG::Base qw(file);
+use CSG::Constants;
 use CSG::Storage::Slots::DB;
 
 use IO::Prompter {ask => [-in => *STDIN, -out => *STDOUT, -yn, -style => 'bold red']};
@@ -9,7 +10,11 @@ use IO::Prompter {ask => [-in => *STDIN, -out => *STDOUT, -yn, -style => 'bold r
 my $schema = CSG::Storage::Slots::DB->new();
 
 sub opt_spec {
-  return (['name|n=s', 'Name of slot to delete', {required => 1}]);
+  return (
+    ['name|n=s', 'Name of slot to delete', {required => 1}],
+    ['force|f',  'Delete slot and contents'],
+    ['yes|y',    'Answer yes to prompts'],
+  );
 }
 
 sub validate_args {
@@ -17,7 +22,7 @@ sub validate_args {
 
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
-  unless ($schema->resultset('Project')->find({name => $self->app->global_options->{project}})) {
+  unless ($project) {
     $self->usage_error('project does not exist');
   }
 
@@ -30,13 +35,31 @@ sub execute {
   my ($self, $opts, $args) = @_;
 
   my $slot = $schema->resultset('Slot')->find_slot($opts->{name}, $self->app->global_options->{project});
+  my $slotfs = CSG::Storage::Slots->find(
+    name    => $slot->name,
+    project => $slot->pool->project->name,
+    prefix  => $self->app->global_options->{prefix},
+  );
 
-  exit unless ask "Really delete slot, $opts->{name}? [yn]";
+  if ($self->app->global_options->{verbose}) {
+    say "Slot Details:\t" . $slot->to_string;
+  }
 
-  say 'Slot Details:';
-  say $slot->to_string;
+  unless ($opts->{yes}) {
+    exit 1 unless ask "Really delete slot, $opts->{name}, and all it's contents? [yn]";
+  }
+
+  if (not $slotfs->is_empty and not $opts->{force}) {
+    say 'Slot is not empty, refusing to delete';
+    exit 1;
+  }
+
+  my $deleted = remove_tree($slotfs->path);
   $slot->delete();
-  say 'Deleted';
+
+  if ($self->app->global_options->{verbose}) {
+    say "Deleted slot record and removed $deleted files from " . $slotfs->path;
+  }
 }
 
 1;

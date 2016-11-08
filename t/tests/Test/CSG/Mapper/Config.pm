@@ -14,7 +14,7 @@ sub startup : Test(startup => 2) {
 
   my $fixture_path = qq{$FindBin::Bin/../t/fixtures/configs};
 
-  $ENV{CSG_MAPPING_CONF} = undef;
+  $ENV{CSG_MAPPING_CONF} = qq{$FindBin::Bin/../config/mapper.ini};
 
   my $config = $test->class->new(
     project     => 'topmed',
@@ -30,7 +30,7 @@ sub test_dsn : Test(1) {
   my ($test) = @_;
   my $config = $test->{config};
 
-  is($config->dsn, 'dbi:mysql:database=csgmapper;host=localhost;port=3306', 'dsn matches');
+  is($config->dsn, 'dbi:mysql:database=baz;host=localhost;port=3306', 'dsn matches');
 }
 
 sub test_project : Test(2) {

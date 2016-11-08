@@ -43,21 +43,9 @@ __PACKAGE__->table("jobs");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 result_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 0
-
 =head2 job_id
 
   data_type: 'integer'
-  is_nullable: 0
-
-=head2 step_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
   is_nullable: 0
 
 =head2 cluster
@@ -105,6 +93,11 @@ __PACKAGE__->table("jobs");
   default_value: 0
   is_nullable: 1
 
+=head2 tmp_dir
+
+  data_type: 'text'
+  is_nullable: 1
+
 =head2 submitted_at
 
   data_type: 'datetime'
@@ -141,12 +134,8 @@ __PACKAGE__->table("jobs");
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
-  "result_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "job_id",
   { data_type => "integer", is_nullable => 0 },
-  "step_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
   "cluster",
   { data_type => "varchar", is_nullable => 0, size => 45 },
   "procs",
@@ -163,6 +152,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 1, size => 45 },
   "delay",
   { data_type => "integer", default_value => 0, is_nullable => 1 },
+  "tmp_dir",
+  { data_type => "text", is_nullable => 1 },
   "submitted_at",
   {
     data_type => "datetime",
@@ -225,39 +216,24 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 result
+=head2 results_states_steps
 
-Type: belongs_to
+Type: has_many
 
-Related object: L<CSG::Mapper::DB::Schema::Result::Result>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "result",
-  "CSG::Mapper::DB::Schema::Result::Result",
-  { id => "result_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
-);
-
-=head2 step
-
-Type: belongs_to
-
-Related object: L<CSG::Mapper::DB::Schema::Result::Step>
+Related object: L<CSG::Mapper::DB::Schema::Result::ResultsStatesStep>
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "step",
-  "CSG::Mapper::DB::Schema::Result::Step",
-  { id => "step_id" },
-  { is_deferrable => 1, on_delete => "NO ACTION", on_update => "NO ACTION" },
+__PACKAGE__->has_many(
+  "results_states_steps",
+  "CSG::Mapper::DB::Schema::Result::ResultsStatesStep",
+  { "foreign.job_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07043 @ 2016-01-19 09:21:17
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:7idfHfC64a/8/lCHjYZ8OA
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-14 11:14:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MvsqeT49WVM+LUbaEHGYtg
 
 sub cancel {
   my ($self) = @_;
@@ -270,8 +246,17 @@ sub cancel {
   );
 
   $self->result->cancel();
+}
 
-  return;
+sub result {
+  my ($self) = @_;
+  my $status = $self->result_source->schema->resultset('ResultsStatesStep')->find(
+    {
+      id => {'=' =>  $self->results_states_steps->search()->get_column('id')->max()},
+    }
+  );
+
+  return ($status) ? $status->result : undef;
 }
 
 1;

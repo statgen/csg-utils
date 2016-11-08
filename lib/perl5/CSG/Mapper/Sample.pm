@@ -150,6 +150,13 @@ has 'state_dir' => (
   builder => '_build_state_dir',
 );
 
+has 'ref_build' => (
+  is      => 'ro',
+  isa     => 'Str',
+  lazy    => 1,
+  builder => '_build_ref_build',
+);
+
 before [qw(incoming_path result_path)] => sub {
   shift->slot;
 };
@@ -242,6 +249,10 @@ sub _build_incoming_path {
     # Backed up/squeezed path:
     # /<prefix>/<host>/<project_backup_dir>/<project_incoming_dir>/<center>/<run_dir>/<sample_id>.src.cram
     $cram = File::Spec->join($base_dir, $backup_dir, $incoming_dir, $self->center, $self->run_dir, $self->sample_id . '.src.cram');
+
+    # TODO - there are cases where the file is not in NWD123456.src.cram format, such as WHI samples.
+    #        we will need to come up with a different way to handle these with
+    #        likely another util that gives paths for everything.
   }
 
   return $bam  if -e $bam;
@@ -277,9 +288,10 @@ sub _build_log_dir {
 
   return $self->slot->log_path if $self->has_slot;
 
-  my $log_dir = $self->_conf->get($self->project, 'log_dir');
   my $workdir = $self->_conf->get($self->project, 'workdir');
-  return File::Spec->join($self->prefix, $workdir, $log_dir, $self->center, $self->pi, $self->sample_id);
+  my $run_dir = $self->_conf->get($self->project, 'run_dir');
+
+  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->sample_id);
 }
 
 sub _build_state_dir {
@@ -290,7 +302,11 @@ sub _build_state_dir {
   my $workdir = $self->_conf->get($self->project, 'workdir');
   my $run_dir = $self->_conf->get($self->project, 'run_dir');
 
-  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->build_str);
+  return File::Spec->join($self->prefix, $workdir, $run_dir, $self->sample_id);
+}
+
+sub _build_ref_build {
+  return shift->record->ref_build;
 }
 
 sub is_complete {

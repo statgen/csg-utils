@@ -23,6 +23,9 @@ Readonly::Hash my %JOB_STATES => (
   FAILED    => 'failed',
   REQUEUED  => 'requeued',
   CANCELLED => 'cancelled',
+  TIMEOUT   => 'timeout',
+  PENDING   => 'pending',
+  NODE_FAIL => 'node_fail',
 );
 
 has 'job_id'            => (is => 'rw', isa => 'Int',       predicate => 'has_job_id');
@@ -41,7 +44,7 @@ sub state {
   my ($self) = @_;
   my $cmd = sprintf $JOB_STATE_CMD_FORMAT, $self->job_id;
   chomp(my $state = capture(EXIT_ANY, $cmd));
-  $state =~ s/^\s+|\s+$//g;
+  $state =~ s/\s+([\w]+)\s+(?:.*)?/$1/;
   return $JOB_STATES{$state};
 }
 
