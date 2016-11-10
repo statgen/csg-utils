@@ -51,10 +51,11 @@ $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
+[% SET files = {} -%]
 [% IF settings.cluster == 'csg' -%]
 [% FOREACH read_group IN fastq.read_groups -%]
 ### Begin: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
-[% SET files = read_group.paired -%]
+[% files.import(read_group.paired) -%]
 $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.name %]'
 [% settings.project_dir %]/bin/gce-align.sh 1 \
   [% sample.sample_id FILTER lower %] \
@@ -127,18 +128,19 @@ fi
 
 [% END -%]
 if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
-  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
-
   $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
   $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
-  if [ $? -ne 0 ]; then
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
+    $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  else
     $MAPPER_LOG_CMD --message 'failed to cleanup bam2fastq tmp_dir [% job.tmp_dir %]' --level critical
+    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
     rc=1
   fi
 else
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
-  $MAPPER_UPDATE_CMD --state failed
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
 fi
 
 exit $rc
