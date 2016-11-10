@@ -133,7 +133,7 @@ if [ $rc -eq 0 ]; then
       rc=1
     fi
   else
-    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]" --level critical
     rc=1
   fi
 fi
