@@ -23,7 +23,7 @@ MACHINE_TAG=$(basename $1 .fastq.gz | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0
 MACHINE_TYPE_OPTS="--custom-cpu 32 --custom-memory 64GiB"
 #MACHINE_TYPE_OPTS="--machine-type  n1-standard-32"
 
-gcloud compute instances create --tags $MACHINE_TAG --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
+gcloud compute instances create --scopes storage-full --tags $MACHINE_TAG --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
 
 EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
