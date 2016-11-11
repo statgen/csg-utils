@@ -41,7 +41,7 @@ then
   then  
     for f in $INPUT_FILES
     do
-      echo "Uploading "$f" ..."
+      echo "Downloading "$f" ..."
       START_TIME=$(date +%s)
       gcloud compute ssh $MACHINE_NAME -- gsutil cp $f /home/alignment/input.fastq.gz
       EXIT_STATUS=$?
@@ -89,11 +89,11 @@ then
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
-          echo "Downloading "$OUTPUT_FILE" ..."
+          echo "Uploading "$OUTPUT_FILE" ..."
           START_TIME=$(date +%s)
-          gcloud compute ssh $MACHINE_NAME -- gsutil cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
+          gcloud compute ssh $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
-          echo 'Download exit status: '$EXIT_STATUS
+          echo 'Upload exit status: '$EXIT_STATUS
           echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
           break
