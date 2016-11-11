@@ -142,13 +142,6 @@ $MAPPER_LOG_CMD --message 'beginning upload to google cloud storage'
 gsutil -m rsync -r $TMP_DIR gs://topmed-fastqs/[% sample.sample_id %]
 if [ $? -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'completed upload to google cloud storage'
-
-  $MAPPER_LOG_CMD --message "deleting tmp_dir[$TMP_DIR]"
-  rm -rv $TMP_DIR
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --message "failed to delete tmp_dir[$TMP_DIR]" --level critical
-    rc=1
-  fi
 else
   $MAPPER_LOG_CMD --message 'failed to upload to google cloud storage' --level critical
   rc=1
