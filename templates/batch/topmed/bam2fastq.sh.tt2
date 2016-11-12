@@ -117,7 +117,7 @@ if [ $rc -eq 0 ]; then
 
   fastq_lines=0
   fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
-  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ2); do
+  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
     fastq_lines=$(( $fastq_lines + $(zcat $fastq | wc -l) ))
   done
 
