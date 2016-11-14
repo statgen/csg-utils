@@ -113,27 +113,30 @@ rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 
 if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
 
-  fastq_lines=0
-  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
-  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
-    fastq_lines=$(( $fastq_lines + $(zcat $fastq | wc -l) ))
-  done
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
 
-  fastq_reads=$(( $fastq_lines / 4 ))
-  cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
-  if [ $fastq_reads -eq $cram_reads ]; then
-    $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
-    $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
-    $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+    fastq_lines=0
+    fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+    for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
+      lines=$(zcat $fastq | wc -l)
+      fastq_lines=$(( $fastq_lines + $lines ))
+      $MAPPER_UPDATE_CMD --fastq $fastq --reads $lines
+    done
 
-    if [ $? -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+    fastq_reads=$(( $fastq_lines / 4 ))
+    cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+    if [ $fastq_reads -eq $cram_reads ]; then
+      $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    else
+      $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]" --level critical
       rc=1
     fi
   else
-    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]" --level critical
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
     rc=1
   fi
 fi
