@@ -113,6 +113,8 @@ rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 
 if [ $rc -eq 0 ]; then
+  fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
+
   $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
   $MAPPER_UPDATE_CMD --fastq-list $fastq_list
 
@@ -120,7 +122,6 @@ if [ $rc -eq 0 ]; then
     $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
 
     fastq_lines=0
-    fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
     for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
       lines=$(zcat $fastq | wc -l)
       fastq_lines=$(( $fastq_lines + $lines ))
