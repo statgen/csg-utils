@@ -23,7 +23,7 @@ MACHINE_TAG=$(basename $1 .fastq.gz | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0
 MACHINE_TYPE_OPTS="--custom-cpu 32 --custom-memory 64GiB"
 #MACHINE_TYPE_OPTS="--machine-type  n1-standard-32"
 
-gcloud compute instances create --tags $MACHINE_TAG --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
+gcloud compute instances create --scopes storage-full --tags $MACHINE_TAG --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
 
 EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
@@ -41,18 +41,11 @@ then
   then  
     for f in $INPUT_FILES
     do
-      # calculate 60 seconds + tranfer time at 40 Mbps for file
-      FILE_TRANSFER_TIMEOUT=$(echo "60 + ("$(stat -c%s $f)"*8/1024/1024/40)" | bc)
-
-      echo "Uploading "$f" ..."
+      echo "Downloading "$f" ..."
       START_TIME=$(date +%s)
-      timeout $FILE_TRANSFER_TIMEOUT gcloud compute copy-files $f $MACHINE_NAME":/home/alignment/input.fastq.gz"
+      gcloud compute ssh $MACHINE_NAME -- gsutil cp $f /home/alignment/input.fastq.gz
       EXIT_STATUS=$?
       echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-
-      if [ $EXIT_STATUS -eq 124 ]; then
-        echo "[$(date)] copy-files transfer to google timed out after ${FILE_TRANSFER_TIMEOUT}s"
-      fi
 
       RETRY_COUNTER=0
       while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
@@ -96,16 +89,12 @@ then
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
-          echo "Downloading "$OUTPUT_FILE" ..."
+          echo "Uploading "$OUTPUT_FILE" ..."
           START_TIME=$(date +%s)
-          timeout $FILE_TRANSFER_TIMEOUT gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram" $OUTPUT_FILE && gcloud compute copy-files $MACHINE_NAME":/home/alignment/output.cram.ok" $OUTPUT_FILE".ok"
+          gcloud compute ssh $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
-          echo 'Download exit status: '$EXIT_STATUS
+          echo 'Upload exit status: '$EXIT_STATUS
           echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-
-          if [ $EXIT_STATUS -eq 124 ]; then
-            echo "[$(date)] copy-files transfer to google timed out after ${FILE_TRANSFER_TIMEOUT}s"
-          fi
 
           break
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
