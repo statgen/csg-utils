@@ -146,6 +146,7 @@ $MAPPER_LOG_CMD --message 'beginning upload to google cloud storage'
 gsutil -m rsync -r $TMP_DIR gs://topmed-fastqs/[% sample.sample_id %]
 if [ $? -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'completed upload to google cloud storage'
+  # TODO - cleanup $TMP_DIR, or maybe not, no local copy means no flux processing
 else
   $MAPPER_LOG_CMD --message 'failed to upload to google cloud storage' --level critical
   rc=1

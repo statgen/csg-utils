@@ -2,7 +2,7 @@
 package CSG::Mapper::Command::launch;
 
 use CSG::Mapper -command;
-use CSG::Base qw(file templates);
+use CSG::Base qw(file templates www);
 use CSG::Constants qw(:basic :mapping);
 use CSG::Mapper::Config;
 use CSG::Mapper::DB;
@@ -300,6 +300,20 @@ sub execute {
       File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
+    my $fastq_bucket = $config->get($project, 'google_fastq_bucket');
+    $logger->debug("google fastq bucket: $fastq_bucket") if $debug;
+    unless ($fastq_bucket) {
+      $logger->critical('Google Storage Bucket for fastqs is not defined!');
+      exit 1;
+    }
+
+    my $cram_bucket = $config->get($project, 'google_cram_bucket');
+    $logger->debug("google cram bucket: $cram_bucket") if $debug;
+    unless ($cram_bucket) {
+      $logger->critical('Google Storage Bucket for crams is not default!');
+      exit 1;
+    }
+
     ## no tidy
     my $params     = {sample => $sample_obj};
     $params->{job} = {
@@ -349,6 +363,11 @@ sub execute {
       samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
       illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
     };
+
+    $params->{google} = {
+      fastq_bucket => $fastq_bucket,
+      cram_bucket  => $cram_bucket,
+    };
     ## use tidy
 
     if ($step->name eq 'cloud-align') {
@@ -382,12 +401,23 @@ sub execute {
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
-          my $cram = File::Spec->join($path, qq{$name.cram});
+          my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+
+          my $fastq_file = qq{${name}${suffix}};
+          my $fastq_uri  = URI->new($fastq_bucket);
+
+          $fastq_uri->path($fastq->sample->sample_id . $SLASH . $fastq_file);
+
+          my $fastq_ref = {
+            cram           => $cram,
+            fastq          => $fastq_file,
+            fastq_read_cnt => $fastq->read_cnt,
+          };
 
           if ($fastq->path =~ /_interleaved\.fastq\.gz$/) {
-            $rg_ref->{paired}->{$fastq->path} = $cram;
+            $rg_ref->{paired}->{$fastq_uri->as_string}   = $fastq_ref;
           } else {
-            $rg_ref->{unpaired}->{$fastq->path} = $cram;
+            $rg_ref->{unpaired}->{$fastq_uri->as_string} = $fastq_ref;
           }
         }
 

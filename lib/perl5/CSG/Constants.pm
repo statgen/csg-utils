@@ -16,6 +16,7 @@ our @EXPORT = (
     $SPACE
     $TAB
     $COLON
+    $SLASH
     $TIMEZONE
     )
 );
@@ -33,6 +34,7 @@ our @EXPORT_OK = (
     $SPACE
     $TAB
     $COLON
+    $SLASH
     $MAX_DELAY
     $TIMEZONE
     $VALID_CLUSTER_REGEXPS
@@ -57,6 +59,7 @@ our %EXPORT_TAGS = (
       $SPACE
       $TAB
       $COLON
+      $SLASH
       $TIMEZONE
       $VALID_CLUSTER_REGEXPS
       $FASTQ_SUFFIX
@@ -79,6 +82,7 @@ our %EXPORT_TAGS = (
       $SPACE
       $TAB
       $COLON
+      $SLASH
       )
   ],
   mapping => [
@@ -104,6 +108,7 @@ Readonly::Scalar our $DASH       => q{-};
 Readonly::Scalar our $SPACE      => q{ };
 Readonly::Scalar our $TAB        => qq{\t};
 Readonly::Scalar our $COLON      => q{:};
+Readonly::Scalar our $SLASH      => q{/};
 Readonly::Scalar our $TIMEZONE   => q{America/Detroit};
 
 Readonly::Scalar our $MAX_DELAY             => 120;

@@ -175,7 +175,11 @@ sub execute {
   }
 
   if ($opts->{fastq_complete}) {
-    my $fastq_rs = $meta->result->sample->fastqs->search({path => $opts->{fastq_complete}});
+    my $fastq_rs = $meta->result->sample->fastqs->search(
+      {
+        path => {like => '%' . $opts->{fastq_complete}}
+      }
+    );
 
     if ($fastq_rs->count > 1) {
       $logger->critical('Found multiple fastq files when there should only be one');

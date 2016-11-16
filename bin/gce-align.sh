@@ -1,4 +1,15 @@
 #!/bin/bash
+#
+# Usage:
+#   gce-align.sh [paired] [sample_id] [read_group_ident] [read_group] [output_dir] [input_files]
+#
+#   [paired]           - either 0 or 1 for unpaired or paired reads
+#   [sample_id]        - sample identifier (e.g. nwd123456)
+#   [read_group_ident] - identification string to describe the read group for vm creatation (e.g rg-0)
+#   [read_group]       - read group string from the .list file during bam2fastq
+#   [output_dir]       - directory, or google bucket, where cram files will be written
+#   [input_files]      - full path to fastq file(s). can be absolute path or google bucket uri (e.g. gs://topmed-fastqs/)
+#
 PAIRED=$1
 shift
 SAMPLE_ID=$1
@@ -19,11 +30,9 @@ case "$PAIRED" in
 esac
 
 MACHINE_NAME="align-${SAMPLE_ID}-${RG_IDENT}"
-MACHINE_TAG=$(basename $1 .fastq.gz | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | head -c62)
 MACHINE_TYPE_OPTS="--custom-cpu 32 --custom-memory 64GiB"
-#MACHINE_TYPE_OPTS="--machine-type  n1-standard-32"
 
-gcloud compute instances create --scopes storage-full --tags $MACHINE_TAG --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
+gcloud compute instances create --scopes storage-full --image ubuntu-1404-alignment $MACHINE_TYPE_OPTS --boot-disk-size 300 --preemptible $MACHINE_NAME
 
 EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
@@ -38,14 +47,14 @@ then
 
   EXIT_STATUS=$?
   if [[ $EXIT_STATUS == 0 ]]
-  then  
+  then
     for f in $INPUT_FILES
     do
-      echo "Downloading "$f" ..."
+      echo "[$(date)] Downloading $f"
       START_TIME=$(date +%s)
       gcloud compute ssh $MACHINE_NAME -- gsutil cp $f /home/alignment/input.fastq.gz
       EXIT_STATUS=$?
-      echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+      echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
       RETRY_COUNTER=0
       while [[ $EXIT_STATUS == 0 && $RETRY_COUNTER -lt 5 ]]
@@ -65,11 +74,11 @@ then
             CONTAINER_IS_RUNNING=0
             EXIT_STATUS=${BASH_REMATCH[1]}
 
-            echo "Fetching logs ..."
+            echo "[$(date)] Fetching logs"
             gcloud compute ssh $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
             if [[ $? != 0 ]]
             then
-              echo "Fetching logs FAILED!"
+              echo "[$(date)] Fetching logs FAILED!"
             fi
           fi
 
@@ -82,25 +91,25 @@ then
             FAILED_CONTAINER_POLL_COUNT=0
           else
             let FAILED_CONTAINER_POLL_COUNT++
-            echo "Failed Count: "$FAILED_CONTAINER_POLL_COUNT
+            echo "[$(date)] Failed Count: $FAILED_CONTAINER_POLL_COUNT"
           fi
         done
 
         if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
         then
           OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $f .fastq.gz)".cram"
-          echo "Uploading "$OUTPUT_FILE" ..."
+          echo "[$(date)] Uploading $OUTPUT_FILE"
           START_TIME=$(date +%s)
           gcloud compute ssh $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
           EXIT_STATUS=$?
-          echo 'Upload exit status: '$EXIT_STATUS
-          echo "Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+          echo "[$(date)] Upload exit status: $EXIT_STATUS"
+          echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
           break
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
         then
           #sleep 300s
-          echo "Machine stopped. Restarting "$MACHINE_NAME" ..."
+          echo "[$(date)] Machine stopped. Restarting $MACHINE_NAME"
           gcloud compute instances start $MACHINE_NAME
         fi
 
@@ -111,7 +120,7 @@ then
 fi
 
 # Machine may exist even if "docker-machine create" fails.
-echo 'Cleaning up ...'
+echo "[$(date)] Cleaning up ..."
 gcloud compute instances delete --quiet $MACHINE_NAME
 
 exit $EXIT_STATUS
