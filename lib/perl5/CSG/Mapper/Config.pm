@@ -53,7 +53,7 @@ sub _build_config_dir {
 }
 
 sub _build_global_conf_file {
-  return $ENV{CSG_MAPPING_CONF} // File::Spec->join(shift->_config_dir, 'mapper.ini');
+  return File::Spec->join(shift->_config_dir, 'mapper.ini');
 }
 
 sub _build_global_conf {

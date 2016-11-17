@@ -18,7 +18,7 @@ env:
     - SLOTS_DB_HOST="127.0.0.1"
     - SLOTS_DB_USER="travis"
     - SLOTS_DB_PASS=""
-    - CSG_MAPPING_CONF="/home/travis/build/statgen/csg-utils/config/mapping.ini"
+    - CSG_MAPPING_CONF="/home/travis/build/statgen/csg-utils/t/fixtures/configs/mapper.ini"
 branches:
   only:
     - master
