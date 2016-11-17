@@ -77,6 +77,14 @@ $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.nam
 ### End: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
 
 [% END -%]
+
+$MAPPER_LOG_CMD --message 'creating output directory [% settings.out_dir %]'
+mkdir -p [% settings.out_dir %]
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to create output directory [% settings.out_dir %]' --level critical
+  exit 1
+fi
+
 $MAPPER_LOG_CMD --message 'retrieve cram files from google storage bucket'
 gsutil -m rsync -r [% google.cram_bucket %]/[% sample.sample_id %] [% settings.out_dir %]
 

@@ -237,11 +237,6 @@ sub execute {
 
     $logger->job_id($job_meta->id);
 
-    unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir') if $debug;
-      make_path($sample_obj->result_path);
-    }
-
     if ($debug) {
       $logger->debug("cluster: $cluster");
       $logger->debug("procs: $procs");
