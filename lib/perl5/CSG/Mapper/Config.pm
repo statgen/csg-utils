@@ -16,7 +16,8 @@ has 'project' => (
 has '_config_dir' => (
   is      => 'ro',
   isa     => 'Directory',
-  default => sub { return dirname($ENV{CSG_MAPPING_CONF}); },
+  lazy    => 1,
+  builder => '_build_config_dir',
 );
 
 has '_global_conf_file' => (
@@ -46,6 +47,10 @@ has '_project_conf' => (
   lazy    => 1,
   builder => '_build_project_conf',
 );
+
+sub _build_config_dir {
+  return dirname($ENV{CSG_MAPPING_CONF}) if -e $ENV{CSG_MAPPING_CONF};
+}
 
 sub _build_global_conf_file {
   return $ENV{CSG_MAPPING_CONF} // File::Spec->join(shift->_config_dir, 'mapper.ini');
