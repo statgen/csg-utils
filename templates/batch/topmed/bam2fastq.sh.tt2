@@ -143,7 +143,7 @@ if [ $rc -eq 0 ]; then
 fi
 
 $MAPPER_LOG_CMD --message 'beginning upload to google cloud storage'
-gsutil -m rsync -r $TMP_DIR gs://topmed-fastqs/[% sample.sample_id %]
+gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp -r $TMP_DIR [% google.fastq_bucket %]/[% sample.sample_id %]
 if [ $? -eq 0 ]; then
   $MAPPER_LOG_CMD --message 'completed upload to google cloud storage'
   # TODO - cleanup $TMP_DIR, or maybe not, no local copy means no flux processing
