@@ -164,7 +164,7 @@ if [ $rc -eq 0 ]; then
   crams="$(gsutil ls $cram_bucket | wc -l)"
   if [ $crams -eq 0 ]; then
     $MAPPER_LOG_CMD --message "no crams left in $cram_bucket, deleting"
-    gsutil rm -a $cram_bucket
+    gsutil rm -r -a $cram_bucket
     if [ $? -ne 0 ]; then
       $MAPPER_LOG_CMD --message "failed to delete $cram_bucket" --level critical
       rc=1
@@ -176,7 +176,7 @@ if [ $rc -eq 0 ]; then
   fastqs="$(gsutil ls $fastq_bucket | grep 'fastq.gz' | wc -l)"
   if [ $fastqs -eq 0 ]; then
     $MAPPER_LOG_CMD --message "no fastqs left in $fastq_bucket, deleting"
-    gsutil rm -a $fastq_bucket
+    gsutil rm -r -a $fastq_bucket
     if [ $? -ne 0 ]; then
       $MAPPER_LOG_CMD --message "failed to delete $fastq_bucket" --level critical
     fi
@@ -185,7 +185,7 @@ if [ $rc -eq 0 ]; then
     rc=1
   fi
 
-  if [ $rc -eq 0]; then
+  if [ $rc -eq 0 ]; then
     $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
 
     # XXX - will fail in the future when we upload and delete fastqs
