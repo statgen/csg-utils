@@ -158,20 +158,7 @@ fi
 
 [% END -%]
 if [ $rc -eq 0 ]; then
-  cram_bucket=[% google.cram_bucket %]/[% sample.sample_id %]
   fastq_bucket=[% google.fastq_bucket %]/[% sample.sample_id %]
-
-  crams="$(gsutil ls $cram_bucket | wc -l)"
-  if [ $crams -eq 0 ]; then
-    $MAPPER_LOG_CMD --message "no crams left in $cram_bucket, deleting"
-    gsutil rm -r -a $cram_bucket
-    if [ $? -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to delete $cram_bucket" --level critical
-      rc=1
-    fi
-  else
-    $MAPPER_LOG_CMD --message "found crams still in $cram_bucket" --level critical
-  fi
 
   fastqs="$(gsutil ls $fastq_bucket | grep 'fastq.gz' | wc -l)"
   if [ $fastqs -eq 0 ]; then
