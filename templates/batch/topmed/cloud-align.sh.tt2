@@ -54,8 +54,9 @@ $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].
 [% SET files = {} -%]
 [% IF settings.cluster == 'csg' -%]
 [% FOREACH read_group IN fastq.read_groups -%]
-### Begin: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
 [% files.import(read_group.paired) -%]
+[% IF settings.skip_alignment == 0 -%]
+### Begin: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
 $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.name %]'
 [% settings.project_dir %]/bin/gce-align.sh 1 \
   [% sample.sample_id FILTER lower %] \
@@ -63,18 +64,21 @@ $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.nam
   "[% read_group.name %]" \
   [% google.cram_bucket %]/[% sample.sample_id %] \
   [% read_group.paired.keys.join(' ') %]
+[% END -%]
 
 [% IF read_group.defined('unpaired') -%]
-  [% files.import(read_group.unpaired) -%]
-  $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
-  [% settings.project_dir %]/bin/gce-align.sh 0 \
-    [% sample.sample_id FILTER lower %] \
-    rg-[% read_group.index %] \
-    "[% read_group.name %]" \
-    [% google.cram_bucket %]/[% sample.sample_id %] \
-    [% read_group.unpaired.keys.join(' ') %]
-[% END -%]
+[% files.import(read_group.unpaired) -%]
+[% IF settings.skip_alignment == 0 -%]
+$MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
+[% settings.project_dir %]/bin/gce-align.sh 0 \
+  [% sample.sample_id FILTER lower %] \
+  rg-[% read_group.index %] \
+  "[% read_group.name %]" \
+  [% google.cram_bucket %]/[% sample.sample_id %] \
+  [% read_group.unpaired.keys.join(' ') %]
 ### End: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
+[% END -%]
+[% END -%]
 
 [% END -%]
 

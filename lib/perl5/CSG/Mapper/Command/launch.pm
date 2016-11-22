@@ -24,6 +24,7 @@ sub opt_spec {
     ['sample=s',          'Sample id to submit (e.g. NWD123456)'],
     ['exclude-host=s@',   'Exclude samples that would fall on a specific host(s) (e.g. topmed3, topmed4)'],
     ['exclude-center=s@', 'Exclude samples that came from specific center(s) (e.g. illumina)'],
+    ['skip-alignment',    'Cleanup after alignment failure (i.e. cloud-align worked, crams were downloaded, but vaildation failed)'],
     ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
@@ -340,6 +341,7 @@ sub execute {
       cluster         => $cluster,
       project         => $project,
       next_step       => $opts->{next_step},
+      skip_alignment  => ($opts->{skip_alignment}) ? $TRUE : $FALSE,
     };
 
     $params->{gotcloud} = {
