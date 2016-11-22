@@ -120,14 +120,14 @@ if [ $rc -eq 0 ]; then
   if [ $? -eq 0 ]; then
     $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
 
-    fastq_lines=0
+    fastq_reads=0
     for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
-      lines=$(zcat $fastq | wc -l)
-      fastq_lines=$(( $fastq_lines + $lines ))
-      $MAPPER_UPDATE_CMD --fastq $fastq --reads $lines
+      reads=$(( $(zcat $fastq | wc -l) / 4 ))
+      fastq_reads=$(( $fastq_reads + $reads ))
+
+      $MAPPER_UPDATE_CMD --fastq $fastq --reads $reads
     done
 
-    fastq_reads=$(( $fastq_lines / 4 ))
     cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
     if [ $fastq_reads -eq $cram_reads ]; then
       $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
