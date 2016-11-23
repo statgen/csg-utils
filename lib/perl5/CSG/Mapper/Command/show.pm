@@ -260,7 +260,7 @@ sub _stale {
 
     my $job_state = $job->state;
     next if $job_state eq 'running';
-    say $result->result->status_line . 'JOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
+    say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime() . ' JOBID: ' . $result->job->id . ' CLSTJOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
   }
 }
 
