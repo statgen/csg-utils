@@ -48,12 +48,40 @@ TMP_DIR=[% settings.tmp_dir %]
 $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_LOG_CMD --message 'starting bam2fastq'
 
-if [ -e $TMP_DIR ]; then
-  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
-  rm -rf $TMP_DIR
-fi
+JOB_TMP_BASE=/tmp/[% settings.project %]
+[% IF settings.cluster == 'csg' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
 
-JOB_TMP_DIR=/tmp/[% settings.project %]/$JOB_ID
+    job_state="$(sacct -j $id -X -n -o state%7)"
+    if [ "$job_state" != "RUNNING " ]; then # XXX - left trailing space on purpose
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -rf $tmp_dir
+    fi
+  done
+fi
+[% ELSIF settings.cluster == 'flux' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    qstat -f -e $id > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -rf $tmp_dir
+    fi
+  done
+fi
+[% END -%]
+
+JOB_TMP_DIR=${JOB_TMP_BASE}/${JOB_ID}
 $MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
 mkdir -p $JOB_TMP_DIR
 
@@ -61,6 +89,11 @@ if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
+fi
+
+if [ -e $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
+  rm -rf $TMP_DIR
 fi
 
 $MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
@@ -152,6 +185,9 @@ else
 fi
 
 if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message "deleteing job tmp directory $JOB_TMP_DIR"
+  rm -rf $JOB_TMP_DIR
+
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 else
