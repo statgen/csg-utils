@@ -89,6 +89,10 @@ if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
+elif [ ! -d $JOB_TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
 fi
 
 if [ -e $TMP_DIR ]; then
@@ -101,6 +105,10 @@ mkdir -p $TMP_DIR
 
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+elif [ ! -d $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
