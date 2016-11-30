@@ -60,7 +60,7 @@ if [ -d $JOB_TMP_BASE ]; then
     if [ "$job_state" != "RUNNING " ]; then # XXX - left trailing space on purpose
       tmp_dir=${JOB_TMP_BASE}/${id}
       $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
-      rm -rf $tmp_dir
+      rm -vrf $tmp_dir
     fi
   done
 fi
@@ -75,7 +75,7 @@ if [ -d $JOB_TMP_BASE ]; then
     if [ $? -ne 0 ]; then
       tmp_dir=${JOB_TMP_BASE}/${id}
       $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
-      rm -rf $tmp_dir
+      rm -vrf $tmp_dir
     fi
   done
 fi
@@ -97,7 +97,7 @@ fi
 
 if [ -e $TMP_DIR ]; then
   $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
-  rm -rf $TMP_DIR
+  rm -vrf $TMP_DIR
 fi
 
 $MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
@@ -194,7 +194,7 @@ fi
 
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "deleteing job tmp directory $JOB_TMP_DIR"
-  rm -rf $JOB_TMP_DIR
+  rm -vrf $JOB_TMP_DIR
 
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
