@@ -83,7 +83,7 @@ fi
 
 JOB_TMP_DIR=${JOB_TMP_BASE}/${JOB_ID}
 $MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
-mkdir -p $JOB_TMP_DIR
+mkdir -vp $JOB_TMP_DIR
 
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
@@ -101,7 +101,7 @@ if [ -e $TMP_DIR ]; then
 fi
 
 $MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
-mkdir -p $TMP_DIR
+mkdir -vp $TMP_DIR
 
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
