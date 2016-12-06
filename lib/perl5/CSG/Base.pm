@@ -23,6 +23,7 @@ our %IMPORT_BUNDLES = (
   cmd => [
     'IPC::System::Simple' => [qw(run capture EXIT_ANY)],
     'System::Command',
+    'Capture::Tiny',
   ],
   config => [
     qw(
@@ -31,6 +32,7 @@ our %IMPORT_BUNDLES = (
   ],
   file => [
     qw(
+      IO::File
       File::Spec
       File::Basename
       File::Stat

@@ -112,7 +112,7 @@ Readonly::Scalar our $SLASH      => q{/};
 Readonly::Scalar our $TIMEZONE   => q{America/Detroit};
 
 Readonly::Scalar our $MAX_DELAY             => 120;
-Readonly::Scalar our $VALID_CLUSTER_REGEXPS => qr{csg|flux};
+Readonly::Scalar our $VALID_CLUSTER_REGEXPS => qr{csg|flux|dummy};
 Readonly::Scalar our $FASTQ_SUFFIX          => q{.fastq.gz};
 
 Readonly::Hash our %CLUSTER_MAP => (

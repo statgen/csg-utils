@@ -452,7 +452,7 @@ sub execute {
 
       $job_meta->update(
         {
-          job_id       => $job->job_id(),
+          job_id       => $job->job_id() // undef, # FIXME - dummy cluster will not have a job_id to set
           submitted_at => $schema->now(),
         }
       );

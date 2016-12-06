@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -eu -o pipefail
+
 [% IF settings.cluster == 'csg' -%]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=[% job.procs %]
@@ -29,10 +31,13 @@ NODELIST=$SLURM_JOB_NODELIST
 #PBS -j oe
 #PBS -N [% job.job_name %]
 
-set -eu -o pipefail
-
 JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
+[% IF settings.cluster == 'dummy' -%]
+
+# XXX - $JOB_ID comes for env
+JOB_ID=$MAPPER_JOB_ID
+NODELIST=$(hostname)
 [% END -%]
 
 export PERL_CARTON_PATH=[% settings.project_dir %]/local

@@ -1,7 +1,6 @@
 requires 'Modern::Perl';
 requires 'Readonly';
 requires 'Try::Tiny';
-requires 'IO::All';
 requires 'Config::Tiny';
 requires 'YAML';
 requires 'Import::Base';
@@ -11,8 +10,11 @@ requires 'App::Cmd';
 requires 'Exception::Class';
 requires 'Module::Load';
 requires 'Number::Bytes::Human';
-requires 'IO::Prompter';
 requires 'Text::ASCIITable';
+
+requires 'IO::All';
+requires 'IO::File';
+requires 'IO::Prompter';
 
 requires 'Moose';
 requires 'MooseX::AbstractFactory';
@@ -31,6 +33,7 @@ requires 'Log::Dispatch::DBI';
 
 requires 'System::Command';
 requires 'IPC::System::Simple';
+requires 'Capture::Tiny';
 
 requires 'WWW::Mechanize';
 requires 'Mojo::UserAgent';
