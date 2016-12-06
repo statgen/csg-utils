@@ -28,10 +28,10 @@ sub opt_spec {
     ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging|local-recab)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
+          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging|local-recab/},
         }
       }
     ], [
@@ -351,6 +351,7 @@ sub execute {
       cmd          => File::Spec->join($gotcloud_root, 'gotcloud'),
       samtools     => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util     => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      dedup        => File::Spec->join($gotcloud_root, '..', 'bamutil-dedup', 'bin', 'bam'),
       bwa          => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
       samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
       illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
