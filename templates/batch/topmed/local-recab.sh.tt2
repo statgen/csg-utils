@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -u -o pipefail
-
 [% IF settings.cluster == 'csg' -%]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=[% job.procs %]
@@ -33,6 +31,8 @@ NODELIST=$SLURM_JOB_NODELIST
 JOB_ID=$PBS_JOBID
 NODELIST=$(cat $PBS_NODEFILE)
 [% END -%]
+
+set -u -o pipefail
 
 META_ID=[% settings.meta_id %]
 MAPPER_CMD=[% settings.mapper_cmd %]
@@ -148,14 +148,14 @@ if [ $rc -eq 0 ]; then
 fi
 
 $MAPPER_LOG_CMD --message "deleting sorted bams"
-rm -vrf ${JOB_TMP_DIR}/*.sorted.bam
+#rm -vrf ${JOB_TMP_DIR}/*.sorted.bam
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to delete sorted bams" --level critical
   rc=1
 fi
 
 $MAPPER_LOG_CMD --message "deleting $MERGED_BAM"
-rm -vrf $MERGED_BAM
+#rm -vrf $MERGED_BAM
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to delete merged bam" --level critical
   rc=1
