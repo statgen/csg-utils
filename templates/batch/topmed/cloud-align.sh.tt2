@@ -42,7 +42,7 @@ export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 META_ID=[% settings.meta_id %]
 MAPPER_CMD=[% settings.mapper_cmd %]
 MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step cloud-align"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step [% settings.step %]"
 
 $MAPPER_LOG_CMD --message 'sending fastq to the cloud'
 $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
@@ -81,116 +81,46 @@ $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group
 
 [% END -%]
 
-$MAPPER_LOG_CMD --message 'creating output directory [% settings.out_dir %]'
-mkdir -p [% settings.out_dir %]
-if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message 'failed to create output directory [% settings.out_dir %]' --level critical
-  exit 1
-fi
-
-$MAPPER_LOG_CMD --message 'retrieve cram files from google storage bucket'
-gsutil -m rsync -r [% google.cram_bucket %]/[% sample.sample_id %] [% settings.out_dir %]
-
 [% ELSIF settings.cluster == 'flux' -%]
   # TODO - flux deployment
 [% END -%]
 rc=0
 [% FOREACH file IN files.keys -%]
 ### Begin: [% files.${file}.cram %]
-fastq_uri="[% file %]"
 fastq_file="[% files.${file}.fastq %]"
-fastq_path="[% job.tmp_dir %]/[% files.${file}.fastq %]"
 cram_file="[% files.${file}.cram %]"
-cram_ok_file="[% files.${file}.cram %].ok"
-cram_uri="[% google.cram_bucket %]/[% sample.sample_id %]/$(basename $cram_file)*"
-flagstat="[% files.${file}.cram %].flagstat"
+cram=$(basename $cram_file)
+cram_uri="[% google.cram_bucket %]/[% sample.sample_id %]/$cram*"
 
-if [[ -e $cram_file && -e $cram_ok_file ]]; then
-  $MAPPER_LOG_CMD --message "running flagstat on $cram_file"
-  [% gotcloud.samtools %] flagstat $cram_file > $flagstat
+if [ $(gsutil ls $cram_uri|wc -l) -eq 2 ]; then
+  # XXX - no way to validate the remote file, assuming the alignment succeeded
+  $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
+  $MAPPER_UPDATE_CMD --fastq-complete $fastq_file
 
-  if [ $? -eq 0 ]; then
-    $MAPPER_LOG_CMD --message "validating reads match for $cram_file"
-[% IF files.${file}.fastq_read_cnt == 0 -%]
-    fastq_reads=$(( $(zcat $fastq_path | wc -l) / 4 ))
-[% ELSE -%]
-    fastq_reads=[% files.${file}.fastq_read_cnt %]
-[% END -%]
-    cram_reads=$(grep 'paired in sequencing' $flagstat | awk {'print $1'})
-
-    if [ $fastq_reads -eq $cram_reads ]; then
-      $MAPPER_LOG_CMD --message "reads matched for $cram_file"
-      $MAPPER_LOG_CMD --message "completed alignment of fastq $fastq_file"
-
-      $MAPPER_LOG_CMD --message "deleting $cram_uri"
-      gsutil rm -a $cram_uri
-      if [ $? -eq 0 ]; then
-        $MAPPER_LOG_CMD --message "deleting $fastq_uri"
-        gsutil rm -a $fastq_uri
-        if [ $? -eq 0 ]; then
-          $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
-
-          # XXX - this will fail when we start deleting the local fastqs after initial upload
-          $MAPPER_UPDATE_CMD --fastq-complete $fastq_file
-
-          if [ $? -ne 0 ]; then
-            $MAPPER_LOG_CMD --message "failed to mark fastq, $fastq_file, complete" --level critical
-            rc=1
-          fi
-        else
-          $MAPPER_LOG_CMD --message "failed to delete $fastq_uri" --level critical
-          rc=1
-        fi
-      else
-        $MAPPER_LOG_CMD --message "failed to delete $cram_uri" --level critical
-        rc=1
-      fi
-    else
-      $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
-      rc=1
-    fi
-  else
-    $MAPPER_LOG_CMD --message "flagstat failed for $cram_file" --level critical
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to mark fastq, $fastq_file, complete" --level critical
     rc=1
   fi
 else
-  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file" --level critical
+  $MAPPER_LOG_CMD --message "missing .cram or .cram.ok for $cram" --level critical
   rc=1
 fi
 ### End: [% files.${file}.cram %]
 
 [% END -%]
 if [ $rc -eq 0 ]; then
-  fastq_bucket=[% google.fastq_bucket %]/[% sample.sample_id %]
+  $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
 
-  fastqs="$(gsutil ls $fastq_bucket | grep 'fastq.gz' | wc -l)"
-  if [ $fastqs -eq 0 ]; then
-    $MAPPER_LOG_CMD --message "no fastqs left in $fastq_bucket, deleting"
-    gsutil rm -r -a $fastq_bucket
-    if [ $? -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to delete $fastq_bucket" --level critical
-    fi
+  # XXX - will fail in the future when we upload and delete fastqs
+  $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
+
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
+    $MAPPER_UPDATE_CMD --state completed --exit-code $rc
   else
-    $MAPPER_LOG_CMD --message "found fastqs still in $fastq_bucket" --level critical
-    rc=1
-  fi
-
-  if [ $rc -eq 0 ]; then
-    $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
-
-    # XXX - will fail in the future when we upload and delete fastqs
-    $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
-
-    if [ $? -eq 0 ]; then
-      $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
-      $MAPPER_UPDATE_CMD --state completed --exit-code $rc
-    else
-      $MAPPER_LOG_CMD --message 'failed to cleanup bam2fastq tmp_dir [% job.tmp_dir %]' --level critical
-      $MAPPER_UPDATE_CMD --state failed --exit-code $rc
-      rc=1
-    fi
-  else
+    $MAPPER_LOG_CMD --message 'failed to cleanup bam2fastq tmp_dir [% job.tmp_dir %]' --level critical
     $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+    rc=1
   fi
 else
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
