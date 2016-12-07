@@ -290,7 +290,7 @@ sub completed_previous_step {
   my $next   = $schema->resultset('Step')->find({name => $step});
 
   if ($next->has_parent) {
-    return $self->completed_step($next->parent->name);
+    return $FALSE unless $self->completed_step($next->parent->name);
   }
 
   return $TRUE;
@@ -299,6 +299,21 @@ sub completed_previous_step {
 sub requested_step {
   my ($self, $step) = @_;
   return $self->current_state_for_step($step) eq 'requested';
+}
+
+sub cancelled_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'cancelled';
+}
+
+sub failed_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'failed';
+}
+
+sub submitted_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'submitted';
 }
 
 1;

@@ -328,28 +328,33 @@ sub is_requested {
 sub is_available {
   my ($self, $step, $build) = @_;
 
-  my $result = $self->results->find({build => $build});
+  my $result  = $self->results->find({build => $build});
+  my $step_rs = $self->result_source->schema->resultset('Step')->find({name => $step});
+
+  # XXX - has no result and step has no previous step
+  return $TRUE if (not $result and not $step_rs->has_parent);
+
+  # XXX - has no result and step has a previous step
+  return $FALSE if (not $result and $step_rs->has_parent);
 
   # XXX - no results at all
   return $TRUE unless $result;
 
-  # XXX - no results for step at all
-  return $TRUE unless $result->processed_step($step);
-
-  # XXX - has to have completed the previous
+  # XXX - has to have completed the previous step
   return $FALSE unless $result->completed_previous_step($step);
 
-  # XXX - don't bother with the rest of the tests if it's already complete
+  # XXX - has it completed the requested step already
   return $FALSE if $result->completed_step($step);
 
   # XXX - if the current state is requested then it needs processing
   return $TRUE if $result->requested_step($step);
 
-  # XXX - step is in flight but not completed or has failed
-  #
-  # TODO - make that a is_started or is_submitted test instead of a second processed_step
-  return $FALSE if $result->processed_step($step);
+  # XXX - states that mean manual intervention is required
+  return $FALSE if $result->failed_step($step);
+  return $FALSE if $result->cancelled_step($step);
+  return $FALSE if $result->submitted_step($step);
 
+  # XXX - passed everything else
   return $TRUE;
 }
 
