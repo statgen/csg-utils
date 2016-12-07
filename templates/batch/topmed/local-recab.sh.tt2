@@ -99,6 +99,13 @@ elif [ ! -d $JOB_TMP_DIR ]; then
   exit 1
 fi
 
+$MAPPER_LOG_CMD --message 'creating output directory [% settings.out_dir %]'
+mkdir -p [% settings.out_dir %]
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to create output directory [% settings.out_dir %]' --level critical
+  exit 1
+fi
+
 rc=0
 for CRAM in ${INPUT_DIR}/*.cram; do
   SORTED_FILE=${JOB_TMP_DIR}/$(basename $CRAM .cram).sorted.bam
