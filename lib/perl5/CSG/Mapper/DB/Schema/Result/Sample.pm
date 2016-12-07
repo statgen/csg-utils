@@ -336,9 +336,10 @@ sub is_available {
   # XXX - no results for step at all
   return $TRUE unless $result->processed_step($step);
 
+  # XXX - has to have completed the previous
+  return $FALSE unless $result->completed_previous_step($step);
+
   # XXX - don't bother with the rest of the tests if it's already complete
-  #
-  # TODO - this will be a problem for results that have been resubmitted to a previous step.
   return $FALSE if $result->completed_step($step);
 
   # XXX - if the current state is requested then it needs processing

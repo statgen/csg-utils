@@ -50,6 +50,12 @@ __PACKAGE__->table("steps");
   is_nullable: 0
   size: 45
 
+=head2 parent_id
+
+  data_type: 'integer'
+  default_value: 0
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -62,6 +68,8 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
     size => 45,
   },
+  "parent_id",
+  { data_type => "integer", default_value => 0, is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -108,9 +116,14 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-09-14 15:30:37
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mEQR6tQVYMTXU9etldoJ8Q
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-12-06 15:34:03
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8SHB1FVGFK+xHeR/LljYng
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
+
+sub has_parent {
+  return shift->parent_id;
+}
+
 1;
