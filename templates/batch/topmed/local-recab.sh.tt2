@@ -50,7 +50,7 @@ export PERL_CARTON_PATH=[% settings.project_dir %]/local
 export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
 export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 
-$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step align
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step [% settings.step %]
 
 JOB_TMP_BASE=/tmp/[% settings.project %]
 [% IF settings.cluster == 'csg' -%]
@@ -101,8 +101,8 @@ fi
 
 rc=0
 for CRAM in ${INPUT_DIR}/*.cram; do
-  SORTED_FILE="${JOB_TMP_DIR}/$(basename $CRAM .cram).sorted.bam"
-  $MAPPER_LOG_CMD --message "starting sort to bam $SORTED_FILE"
+  SORTED_FILE=${JOB_TMP_DIR}/$(basename $CRAM .cram).sorted.bam
+  $MAPPER_LOG_CMD --message "sorting $CRAM to bam $SORTED_FILE"
   [% gotcloud.samtools %] sort \
     --threads [% job.procs %] \
     --reference $REFERENCE \
@@ -116,23 +116,23 @@ for CRAM in ${INPUT_DIR}/*.cram; do
   fi
 done
 
-MERGED_BAM="${JOB_TMP_DIR}/merged.bam"
+MERGED_BAM=${JOB_TMP_DIR}/merged.bam
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "merging sorted bams to $MERGED_BAM"
-  [% gotcloud.samtools %] merge --threads 2 $MERGED_BAM "${JOB_TMP_DIR}/*.sorted.bam"
+  [% gotcloud.samtools %] merge --threads [% job.procs %] $MERGED_BAM ${JOB_TMP_DIR}/*.sorted.bam
 
   if [ $? -ne 0 ]; then
     $MAPPER_LOG_CMD --message "merge failed for $MERGED_BAM" --level critical
     rc=1
   else
-    RECAB_FILE="[% sample.sample_id %].recab.cram"
+    RECAB_FILE=[% sample.sample_id %].recab.cram
     $MAPPER_LOG_CMD --message "starting recab to $RECAB_FILE"
 
     [% gotcloud.dedup %] debug_LowMem \
       --allReadNames \
       --binCustom \
       --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 \
-      --log "${OUT_DIR}/dedup_lowmem.metrics" \
+      --log ${OUT_DIR}/dedup_lowmem.metrics \
       --recab \
       --in $MERGED_BAM
       --out -.ubam \
@@ -163,6 +163,8 @@ fi
 
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "deleting chunked aligned cram"
+  find $INPUT_DIR -name '*.cram' \! -name '*.recab.cram' -ls
+  # XXX - this is bad! would delete the recab.cram as well.
   # rm -rvf [% settings.out_dir %]/*.cram
 fi
 

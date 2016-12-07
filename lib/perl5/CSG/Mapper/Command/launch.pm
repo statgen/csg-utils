@@ -340,6 +340,7 @@ sub execute {
       mapper_cmd      => $PROGRAM_NAME,
       cluster         => $cluster,
       project         => $project,
+      step            => $step->name,
       next_step       => $opts->{next_step},
       skip_alignment  => ($opts->{skip_alignment}) ? $TRUE : $FALSE,
     };
