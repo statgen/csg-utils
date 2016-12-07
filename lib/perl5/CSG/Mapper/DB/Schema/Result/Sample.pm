@@ -303,6 +303,11 @@ sub has_fastqs_with_unpaired_reads {
   return shift->fastqs->search({path => {-not_like => '%interleaved%'}})->count;
 }
 
+sub has_unaligned_fastqs_in_read_group {
+  my ($self, $rg) = @_;
+  return $self->fastqs->search({read_group => $rg, aligned_at => undef})->count;
+}
+
 sub result_for_build {
   my ($self, $build) = @_;
   return $self->results->find({build => $build});

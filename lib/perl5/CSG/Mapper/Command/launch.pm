@@ -385,6 +385,8 @@ sub execute {
 
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
+        next unless $sample->has_unaligned_fastqs_in_read_group($read_group);
+
         push @{$params->{fastq}->{indexes}}, $rg_idx;
 
         my $rg_ref = {
