@@ -164,6 +164,8 @@ fi
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "deleting chunked aligned cram"
   find $INPUT_DIR -name '*.cram' \! -name '*.recab.cram' -ls
+  # TODO - delete *.cram.ok and *.cram.flagstat
+  #
   # XXX - this is bad! would delete the recab.cram as well.
   # rm -rvf [% settings.out_dir %]/*.cram
 fi
