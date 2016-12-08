@@ -39,9 +39,8 @@ MAPPER_CMD=[% settings.mapper_cmd %]
 MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
 MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
 
-OUT_DIR=[% settings.out_dir %]
 TMP_DIR=[% settings.tmp_dir %]
-INPUT_DIR=$OUT_DIR
+INPUT_DIR=[% settings.out_dir %]
 
 DBSNP=/net/fantasia/home/hmkang/code/working/gotcloud_topmed_tmp/resources/Homo_sapiens_assembly38.dbsnp138.vcf.gz # XXX - why is this here?
 REFERENCE=[% gotcloud.ref_dir %]/hs38DH.fa
@@ -132,14 +131,14 @@ if [ $rc -eq 0 ]; then
     $MAPPER_LOG_CMD --message "merge failed for $MERGED_BAM" --level critical
     rc=1
   else
-    RECAB_FILE=[% sample.sample_id %].recab.cram
+    RECAB_FILE=[% settings.out_dir %]/[% sample.sample_id %].recab.cram
     $MAPPER_LOG_CMD --message "starting recab to $RECAB_FILE"
 
     [% gotcloud.dedup %] debug_LowMem \
       --allReadNames \
       --binCustom \
       --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 \
-      --log ${OUT_DIR}/dedup_lowmem.metrics \
+      --log [% settings.out_dir %]/dedup_lowmem.metrics \
       --recab \
       --in $MERGED_BAM
       --out -.ubam \
@@ -170,11 +169,9 @@ fi
 
 if [ $rc -eq 0 ]; then
   $MAPPER_LOG_CMD --message "deleting chunked aligned cram"
-  find $INPUT_DIR -name '*.cram' \! -name '*.recab.cram' -ls
-  # TODO - delete *.cram.ok and *.cram.flagstat
-  #
-  # XXX - this is bad! would delete the recab.cram as well.
-  # rm -rvf [% settings.out_dir %]/*.cram
+  # TODO - add and | xargs rm
+  # TODO - delete *.cram *.cram.ok and *.cram.flagstat but not *.recab.cram
+  ls [% settings.out_dir %]/*.cram{,.ok,.flagstat}|grep -v recab
 fi
 
 exit $rc
