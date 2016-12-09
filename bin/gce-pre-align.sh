@@ -90,6 +90,7 @@ then
     elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
     then
       echo "[$(date)] Lost communication with $MACHINE_NAME"
+      EXIT_STATUS=-1
     fi
   fi
 fi
