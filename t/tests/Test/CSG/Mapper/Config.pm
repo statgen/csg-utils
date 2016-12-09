@@ -14,8 +14,6 @@ sub startup : Test(startup => 2) {
 
   my $fixture_path = qq{$FindBin::Bin/../t/fixtures/configs};
 
-  $ENV{CSG_MAPPING_CONF} = qq{$FindBin::Bin/../config/mapper.ini};
-
   my $config = $test->class->new(
     project     => 'topmed',
     _config_dir => $fixture_path,
@@ -23,6 +21,8 @@ sub startup : Test(startup => 2) {
 
   isa_ok($config, $test->class);
   is($config->_config_dir, $fixture_path, 'config directory path matches');
+
+  $test->{fixture_path} = $fixture_path;
   $test->{config} = $config;
 }
 
@@ -30,13 +30,13 @@ sub test_dsn : Test(1) {
   my ($test) = @_;
   my $config = $test->{config};
 
-  is($config->dsn, 'dbi:mysql:database=baz;host=localhost;port=3306', 'dsn matches');
+  is($config->dsn, 'dbi:mysql:database=csgmapper;host=localhost;port=3306', 'dsn matches');
 }
 
 sub test_project : Test(2) {
   my ($test) = @_;
-  dies_ok(sub {$test->class->new(project => 'foo')}, 'expected to die');
-  lives_ok(sub {$test->class->new(project => 'topmed')}, 'valid project lives');
+  dies_ok(sub {$test->class->new(project => 'foo', _config_dir => $test->{fixture_path})}, 'expected to die');
+  lives_ok(sub {$test->class->new(project => 'topmed', _config_dir => $test->{fixture_path})}, 'valid project lives');
 }
 
 sub test_get : Test(8) {

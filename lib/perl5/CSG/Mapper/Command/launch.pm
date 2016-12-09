@@ -2,7 +2,7 @@
 package CSG::Mapper::Command::launch;
 
 use CSG::Mapper -command;
-use CSG::Base qw(file templates);
+use CSG::Base qw(file templates www);
 use CSG::Constants qw(:basic :mapping);
 use CSG::Mapper::Config;
 use CSG::Mapper::DB;
@@ -24,13 +24,14 @@ sub opt_spec {
     ['sample=s',          'Sample id to submit (e.g. NWD123456)'],
     ['exclude-host=s@',   'Exclude samples that would fall on a specific host(s) (e.g. topmed3, topmed4)'],
     ['exclude-center=s@', 'Exclude samples that came from specific center(s) (e.g. illumina)'],
+    ['skip-alignment',    'Cleanup after alignment failure (i.e. cloud-align worked, crams were downloaded, but vaildation failed)'],
     ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging|local-recab)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
+          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging|local-recab/},
         }
       }
     ], [
@@ -139,11 +140,6 @@ sub execute {
     last if $opts->{limit} and $jobs >= $opts->{limit};
     my $logger = CSG::Mapper::Logger->new();
 
-    if ($sample->run_dir =~ /whi/i and $sample->center->name eq 'broad') {
-      $logger->info('skipping sample for broad WHI ' . $sample->sample_id) if $debug;
-      next;
-    }
-
     unless ($sample->is_available($step->name, $build)) {
       $logger->info('sample ' . $sample->sample_id . ' is not available for processing') if $debug;
       next;
@@ -237,11 +233,6 @@ sub execute {
 
     $logger->job_id($job_meta->id);
 
-    unless (-e $sample_obj->result_path) {
-      $logger->debug('creating out_dir') if $debug;
-      make_path($sample_obj->result_path);
-    }
-
     if ($debug) {
       $logger->debug("cluster: $cluster");
       $logger->debug("procs: $procs");
@@ -300,6 +291,20 @@ sub execute {
       File::Spec->join($run_dir, join($DASH, ($step->name, $sample_obj->build_str, $cluster . '.sh')));
     my $tt = Template->new(INCLUDE_PATH => qq($project_dir/templates/batch/$project));
 
+    my $fastq_bucket = $config->get($project, 'google_fastq_bucket');
+    $logger->debug("google fastq bucket: $fastq_bucket") if $debug;
+    unless ($fastq_bucket) {
+      $logger->critical('Google Storage Bucket for fastqs is not defined!');
+      exit 1;
+    }
+
+    my $cram_bucket = $config->get($project, 'google_cram_bucket');
+    $logger->debug("google cram bucket: $cram_bucket") if $debug;
+    unless ($cram_bucket) {
+      $logger->critical('Google Storage Bucket for crams is not default!');
+      exit 1;
+    }
+
     ## no tidy
     my $params     = {sample => $sample_obj};
     $params->{job} = {
@@ -335,7 +340,9 @@ sub execute {
       mapper_cmd      => $PROGRAM_NAME,
       cluster         => $cluster,
       project         => $project,
+      step            => $step->name,
       next_step       => $opts->{next_step},
+      skip_alignment  => ($opts->{skip_alignment}) ? $TRUE : $FALSE,
     };
 
     $params->{gotcloud} = {
@@ -345,9 +352,15 @@ sub execute {
       cmd          => File::Spec->join($gotcloud_root, 'gotcloud'),
       samtools     => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util     => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      dedup        => File::Spec->join($gotcloud_root, '..', 'bamutil-dedup', 'bin', 'bam'),
       bwa          => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
       samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
       illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
+    };
+
+    $params->{google} = {
+      fastq_bucket => $fastq_bucket,
+      cram_bucket  => $cram_bucket,
     };
     ## use tidy
 
@@ -372,6 +385,8 @@ sub execute {
 
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
+        next unless $sample->has_unaligned_fastqs_in_read_group($read_group);
+
         push @{$params->{fastq}->{indexes}}, $rg_idx;
 
         my $rg_ref = {
@@ -382,12 +397,23 @@ sub execute {
 
         for my $fastq ($sample->fastqs->search({read_group => $read_group, aligned_at => undef})) {
           my ($name, $path, $suffix) = fileparse($fastq->path, $FASTQ_SUFFIX);
-          my $cram = File::Spec->join($path, qq{$name.cram});
+          my $cram = File::Spec->join($sample_obj->result_path, qq{$name.cram});
+
+          my $fastq_file = qq{${name}${suffix}};
+          my $fastq_uri  = URI->new($fastq_bucket);
+
+          $fastq_uri->path($fastq->sample->sample_id . $SLASH . $fastq_file);
+
+          my $fastq_ref = {
+            cram           => $cram,
+            fastq          => $fastq_file,
+            fastq_read_cnt => $fastq->read_cnt,
+          };
 
           if ($fastq->path =~ /_interleaved\.fastq\.gz$/) {
-            $rg_ref->{paired}->{$fastq->path} = $cram;
+            $rg_ref->{paired}->{$fastq_uri->as_string}   = $fastq_ref;
           } else {
-            $rg_ref->{unpaired}->{$fastq->path} = $cram;
+            $rg_ref->{unpaired}->{$fastq_uri->as_string} = $fastq_ref;
           }
         }
 

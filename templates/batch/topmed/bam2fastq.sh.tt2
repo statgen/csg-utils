@@ -11,7 +11,6 @@
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
 #SBATCH --nodes=1-1
-#SBATCH --exclude=[% job.exclude_nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -49,26 +48,67 @@ TMP_DIR=[% settings.tmp_dir %]
 $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_LOG_CMD --message 'starting bam2fastq'
 
-if [ -e $TMP_DIR ]; then
-  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
-  rm -rf $TMP_DIR
-fi
+JOB_TMP_BASE=/tmp/[% settings.project %]
+[% IF settings.cluster == 'csg' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
 
-JOB_TMP_DIR=/tmp/[% settings.project %]/$JOB_ID
+    job_state="$(sacct -j $id -X -n -o state%7)"
+    if [ "$job_state" != "RUNNING " ]; then # XXX - left trailing space on purpose
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% ELSIF settings.cluster == 'flux' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    qstat -f -e $id > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% END -%]
+
+JOB_TMP_DIR=${JOB_TMP_BASE}/${JOB_ID}
 $MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
-mkdir -p $JOB_TMP_DIR
+mkdir -vp $JOB_TMP_DIR
 
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
+elif [ ! -d $JOB_TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+if [ -e $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
+  rm -vrf $TMP_DIR
 fi
 
 $MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
-mkdir -p $TMP_DIR
+mkdir -vp $TMP_DIR
 
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+elif [ ! -d $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create TMP_DIR $TMP_DIR" --level critical
   $MAPPER_UPDATE_CMD --state failed
   exit 1
 fi
@@ -113,32 +153,52 @@ rc=$?
 $MAPPER_LOG_CMD --message "pipe_rc: $rc"
 
 if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
-
-  fastq_lines=0
   fastq_list="${TMP_DIR}/[% sample.sample_id %].list"
-  for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ2); do
-    fastq_lines=$(( $fastq_lines + $(zcat $fastq | wc -l) ))
-  done
 
-  fastq_reads=$(( $fastq_lines / 4 ))
-  cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
-  if [ $fastq_reads -eq $cram_reads ]; then
-    $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
-    $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
-    $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
 
-    if [ $? -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'validating bam2fastq pipeline results'
+
+    fastq_reads=0
+    for fastq in $(awk {'print $2'} $fastq_list | grep -v FASTQ1); do
+      reads=$(( $(zcat $fastq | wc -l) / 4 ))
+      fastq_reads=$(( $fastq_reads + $reads ))
+
+      $MAPPER_UPDATE_CMD --fastq $fastq --reads $reads
+    done
+
+    cram_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+    if [ $fastq_reads -eq $cram_reads ]; then
+      $MAPPER_LOG_CMD --message "reads matched for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    else
+      $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]" --level critical
       rc=1
     fi
   else
-    $MAPPER_LOG_CMD --message "reads did not match for source cram[$cram_reads] and generated fastqs[$fastq_reads]"
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
     rc=1
   fi
 fi
 
 if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message 'beginning upload to google cloud storage'
+  gsutil -m -o GSUtil:parallel_composite_upload_threshold=150M rsync -r $TMP_DIR [% google.fastq_bucket %]/[% sample.sample_id %]
+
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'completed upload to google cloud storage'
+    # TODO - cleanup $TMP_DIR, or maybe not, no local copy means no flux processing
+  else
+    $MAPPER_LOG_CMD --message 'failed to upload to google cloud storage' --level critical
+    rc=1
+  fi
+fi
+
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message "deleteing job tmp directory $JOB_TMP_DIR"
+  rm -vrf $JOB_TMP_DIR
+
   $MAPPER_LOG_CMD --message "[% settings.pipeline %] completed with exit code $rc"
   $MAPPER_UPDATE_CMD --state completed --exit-code $rc
 else

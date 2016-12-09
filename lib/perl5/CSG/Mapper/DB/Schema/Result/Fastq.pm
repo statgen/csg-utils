@@ -66,6 +66,12 @@ __PACKAGE__->table("fastqs");
   data_type: 'text'
   is_nullable: 0
 
+=head2 read_cnt
+
+  data_type: 'bigint'
+  default_value: 0
+  is_nullable: 1
+
 =head2 aligned_at
 
   data_type: 'datetime'
@@ -98,6 +104,8 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 0 },
   "read_group",
   { data_type => "text", is_nullable => 0 },
+  "read_cnt",
+  { data_type => "bigint", default_value => 0, is_nullable => 1 },
   "aligned_at",
   {
     data_type => "datetime",
@@ -149,8 +157,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-10-28 17:42:16
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YbRs1KVhi7Xz2HPaEvEj/Q
+# Created by DBIx::Class::Schema::Loader v0.07045 @ 2016-11-14 15:48:42
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0Ls47RjZjrR7x2sZwQ0vOg
 
 sub align {
   return shift->update({aligned_at => DateTime->now()});

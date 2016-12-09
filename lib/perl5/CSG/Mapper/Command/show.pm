@@ -135,8 +135,14 @@ sub execute {
     my $step  = $self->{stash}->{step};
 
     for my $result ($schema->resultset('ResultsStatesStep')->current_results_by_step_state($build, $step->name, $state->name)) {
-      if ($step->name eq 'started') {
-        say $result->result->status_line() . 'JOBID: ' . $result->job->job_id;
+      if ($state->name =~ /started|submitted|cancelled|failed/) {
+        my $job = CSG::Mapper::Job->new(
+          cluster => $self->app->global_options->{cluster},
+          job_id  => $result->job->job_id
+        );
+
+        my $job_state = $job->state;
+        say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime() . ' JOBID: ' . $result->job->id . ' CLSTJOBID: ' . $result->job->job_id . ' JOBSTATUS: ' . $job_state;
       } else {
         say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime();
       }
@@ -260,7 +266,7 @@ sub _stale {
 
     my $job_state = $job->state;
     next if $job_state eq 'running';
-    say $result->result->status_line . 'JOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
+    say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime() . ' JOBID: ' . $result->job->id . ' CLSTJOBID: ' . $job->job_id . ' JOBSTATUS: ' . $job_state;
   }
 }
 

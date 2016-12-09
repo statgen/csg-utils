@@ -6,13 +6,12 @@
 #SBATCH --mem=[% job.memory %]
 #SBATCH --time=[% job.walltime %]
 #SBATCH --workdir=[% job.workdir %]
-#SBATCH --partition=topmed-working
+#SBATCH --partition=topmed,nomosix
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
-#SBATCH --begin=now+[% job.jobs_cnt * 180 %]
+#SBATCH --begin=now+[% job.jobs_cnt * 10 %]
 #SBATCH --qos=topmed-cloud-align
-#SBATCH --nodelist=[% job.nodelist %]
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -43,7 +42,7 @@ export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
 META_ID=[% settings.meta_id %]
 MAPPER_CMD=[% settings.mapper_cmd %]
 MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step cloud-align"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step [% settings.step %]"
 
 $MAPPER_LOG_CMD --message 'sending fastq to the cloud'
 $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
@@ -51,94 +50,81 @@ $MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
 $MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
 $MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
 
+[% SET files = {} -%]
 [% IF settings.cluster == 'csg' -%]
 [% FOREACH read_group IN fastq.read_groups -%]
+[% files.import(read_group.paired) -%]
+[% IF settings.skip_alignment == 0 -%]
 ### Begin: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
-[% SET files = read_group.paired -%]
 $MAPPER_LOG_CMD --message 'beginning cloud-align for readgroup [% read_group.name %]'
 [% settings.project_dir %]/bin/gce-align.sh 1 \
   [% sample.sample_id FILTER lower %] \
   rg-[% read_group.index %] \
   "[% read_group.name %]" \
-  [% job.tmp_dir %] \
+  [% google.cram_bucket %]/[% sample.sample_id %] \
   [% read_group.paired.keys.join(' ') %]
+[% END -%]
 
 [% IF read_group.defined('unpaired') -%]
-  [% files.import(read_group.unpaired) -%]
-  $MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
-  [% settings.project_dir %]/bin/gce-align.sh 0 \
-    [% sample.sample_id FILTER lower %] \
-    rg-[% read_group.index %] \
-    "[% read_group.name %]" \
-    [% job.tmp_dir %] \
-    [% read_group.unpaired.keys.join(' ') %]
-[% END -%]
+[% files.import(read_group.unpaired) -%]
+[% IF settings.skip_alignment == 0 -%]
+$MAPPER_LOG_CMD --message 'processing unpaired reads in read group [% read_group.name %]'
+[% settings.project_dir %]/bin/gce-align.sh 0 \
+  [% sample.sample_id FILTER lower %] \
+  rg-[% read_group.index %] \
+  "[% read_group.name %]" \
+  [% google.cram_bucket %]/[% sample.sample_id %] \
+  [% read_group.unpaired.keys.join(' ') %]
 ### End: align-[% sample.sample_id FILTER lower %]-rg-[% read_group.index %]
+[% END -%]
+[% END -%]
 
 [% END -%]
+
 [% ELSIF settings.cluster == 'flux' -%]
   # TODO - flux deployment
 [% END -%]
 rc=0
 [% FOREACH file IN files.keys -%]
-[% SET cram = files.$file -%]
-[% SET flagstat = cram _ '.flagstat' -%]
-### Begin: [% cram %]
-fastq_file=$(basename [% file %])
-cram_file=$(basename [% cram %])
+### Begin: [% files.${file}.cram %]
+fastq_file="[% files.${file}.fastq %]"
+cram_file="[% files.${file}.cram %]"
+cram=$(basename $cram_file)
+cram_uri="[% google.cram_bucket %]/[% sample.sample_id %]/$cram*"
 
-if [[ -e [% cram %] && -e [% cram %].ok ]]; then
-  $MAPPER_LOG_CMD --message "running flagstat on $cram_file"
-  [% gotcloud.samtools %] flagstat [% cram %] > [% flagstat %]
+if [ $(gsutil ls $cram_uri|wc -l) -eq 2 ]; then
+  # XXX - no way to validate the remote file, assuming the alignment succeeded
+  $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
+  $MAPPER_UPDATE_CMD --fastq-complete $fastq_file
 
-  if [ $? -eq 0 ]; then
-    fastq_lines=$(zcat [% file %] | wc -l)
-    fastq_reads=$(($fastq_lines / 4))
-    cram_reads=$(grep 'paired in sequencing' [% flagstat %] | awk {'print $1'})
-
-    $MAPPER_LOG_CMD --message "validating reads match for $cram_file"
-
-    if [ $fastq_reads -eq $cram_reads ]; then
-      $MAPPER_LOG_CMD --message "reads matched for $cram_file"
-      $MAPPER_LOG_CMD --message "completed alignment of fastq $fastq_file"
-
-      $MAPPER_LOG_CMD --message 'moving aligned cram files to [% settings.out_dir %]'
-      mv -v [% cram %]{,.ok} [% settings.out_dir %]
-      if [ $? -ne 0 ]; then
-        $MAPPER_LOG_CMD --message 'failed to moved aligned cram files to [% settings.out_dir %]' --level critical
-        rc=1
-      else
-        $MAPPER_LOG_CMD --message "removing fastq $fastq_file"
-        $MAPPER_UPDATE_CMD --fastq-complete [% file %]
-      fi
-    else
-      $MAPPER_LOG_CMD --message "reads do not match for fastq: $fastq_file[$fastq_reads] and cram: $cram_file[$cram_reads]" --level critical
-      rc=1
-    fi
-  else
-    $MAPPER_LOG_CMD --message "flagstat failed for $cram_file" --level critical
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to mark fastq, $fastq_file, complete" --level critical
     rc=1
   fi
 else
-  $MAPPER_LOG_CMD --message "cloud alignment did not return a cram(.ok) for fastq $fastq_file" --level critical
+  $MAPPER_LOG_CMD --message "missing .cram or .cram.ok for $cram" --level critical
   rc=1
 fi
-### End: [% cram %]
+### End: [% files.${file}.cram %]
 
 [% END -%]
 if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
-  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
-
   $MAPPER_LOG_CMD --message 'cleaning up tmp_dir[[% job.tmp_dir %]] from bam2fastq'
+
+  # XXX - will fail in the future when we upload and delete fastqs
   $MAPPER_UPDATE_CMD --bam2fastq-cleanup [% job.tmp_dir %]
-  if [ $? -ne 0 ]; then
+
+  if [ $? -eq 0 ]; then
+    $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] completed'
+    $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+  else
     $MAPPER_LOG_CMD --message 'failed to cleanup bam2fastq tmp_dir [% job.tmp_dir %]' --level critical
+    $MAPPER_UPDATE_CMD --state failed --exit-code $rc
     rc=1
   fi
 else
   $MAPPER_LOG_CMD --message 'cloud alignment for [% sample.sample_id %] failed' --level critical
-  $MAPPER_UPDATE_CMD --state failed
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
 fi
 
 exit $rc

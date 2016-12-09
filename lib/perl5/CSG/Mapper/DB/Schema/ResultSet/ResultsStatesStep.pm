@@ -10,9 +10,10 @@ sub current_results_by_step {
     {
       'step.name'    => $step,
       'result.build' => $build,
+      'project.name' => 'topmed',
     },
     {
-      join     => [qw(result step)],
+      join     => ['step', {result => {sample => 'project'}}],
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search({}, {
@@ -24,8 +25,13 @@ sub current_results_by_step_state {
   my ($self, $build, $step, $state) = @_;
 
   return $self->search(
-    {},
     {
+      'result.build' => $build,
+      'project.name' => 'topmed',
+      'step.name'    => $step,
+    },
+    {
+      join     => ['step', {result => {sample => 'project'}}],
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search(
@@ -35,12 +41,10 @@ sub current_results_by_step_state {
     }
   )->as_subselect_rs->search(
     {
-      'result.build' => $build,
       'state.name'   => $state,
-      'step.name'    => $step,
     },
     {
-      join => [qw(result step state)],
+      join => [qw(state)],
     }
   );
 }
@@ -50,10 +54,11 @@ sub current_state_for_result {
 
   return $self->search(
     {
-      'result.id' => $result_id,
+      'result.id'    => $result_id,
+      'project.name' => 'topmed',
     },
     {
-      join     => 'result',
+      join     => {result => {sample => 'project'}},
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search({}, {
@@ -69,15 +74,15 @@ sub running_by_step {
       'step.name'    => $step,
       'result.build' => $build,
       'state.name'   => {'=' => [qw(submitted started)]},
+      'project.name' => 'topmed',
     },
     {
-      join     => [qw(result step state)],
+      join     => [qw(step state), {result => {sample => 'project'}}],
       order_by => 'created_at desc',
     }
   )->as_subselect_rs->search({}, {
       group_by => 'result_id'
   });
-
 }
 
 1;
