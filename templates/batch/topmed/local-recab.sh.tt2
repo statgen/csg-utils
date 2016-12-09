@@ -140,7 +140,7 @@ if [ $rc -eq 0 ]; then
       --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 \
       --log [% settings.out_dir %]/dedup_lowmem.metrics \
       --recab \
-      --in $MERGED_BAM
+      --in $MERGED_BAM \
       --out -.ubam \
       --refFile $REFERENCE \
       --dbsnp $DBSNP \
