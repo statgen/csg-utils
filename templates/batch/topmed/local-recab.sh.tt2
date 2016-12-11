@@ -134,7 +134,7 @@ if [ $rc -eq 0 ]; then
     RECAB_FILE=[% settings.out_dir %]/[% sample.sample_id %].recab.cram
     $MAPPER_LOG_CMD --message "starting recab to $RECAB_FILE"
 
-    [% gotcloud.dedup %] debup_LowMem \
+    [% gotcloud.dedup %] dedup_LowMem \
       --allReadNames \
       --binCustom \
       --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 \
