@@ -58,71 +58,69 @@ do
     CONTAINER_ID=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$COMMAND"\")
 
     EXIT_STATUS=$?
-    if [[ $EXIT_STATUS == 0 ]]
-    then 
-      while [[ $# -gt 0 ]]
+  
+    while [[ $# -gt 0 && $EXIT_STATUS == 0 ]]
+    do
+      F=$1
+      echo "[$(date)] Downloading "$F" ..."
+      START_TIME=$(date +%s)
+      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp $F /home/alignment/input.fastq.gz
+      EXIT_STATUS=$?
+      echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+
+      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker start $CONTAINER_ID
+
+      CONTAINER_IS_RUNNING=1
+      FAILED_CONTAINER_POLL_COUNT=0
+      while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
       do
-        F=$1
-        echo "[$(date)] Downloading "$F" ..."
-        START_TIME=$(date +%s)
-        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp $F /home/alignment/input.fastq.gz
-        EXIT_STATUS=$?
-        echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-    
-        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker start $CONTAINER_ID
+        sleep 60s
 
-        CONTAINER_IS_RUNNING=1
-        FAILED_CONTAINER_POLL_COUNT=0
-        while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
-        do
-          sleep 60s
-
-          CONTAINER_STATUS=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker ps -al --format {{.Status}})
-          if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
-          then
-            CONTAINER_IS_RUNNING=0
-            EXIT_STATUS=${BASH_REMATCH[1]}
-
-            echo "[$(date)] Fetching logs ..."
-            gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
-            if [[ $? != 0 ]]
-            then
-              echo "[$(date)] Fetching logs FAILED!"
-            fi
-          fi
-
-          if [[ $CONTAINER_STATUS ]]
-          then
-            FAILED_CONTAINER_POLL_COUNT=0
-          else
-            let FAILED_CONTAINER_POLL_COUNT++
-            echo "[$(date)] Failed Count: "$FAILED_CONTAINER_POLL_COUNT
-          fi
-        done
-
-        if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
+        CONTAINER_STATUS=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker ps -al --format {{.Status}})
+        if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
         then
-          OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $F .fastq.gz)".cram"
-          echo "[$(date)] Uploading "$OUTPUT_FILE" ..."
-          START_TIME=$(date +%s)
-          gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
-          EXIT_STATUS=$?
-          echo "[$(date)] Upload exit status: "$EXIT_STATUS
-          echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-          
-          if [[ $RETRY_COUNTER -gt 0 ]]
-          then
-            let RETRY_COUNTER--
-          fi
+          CONTAINER_IS_RUNNING=0
+          EXIT_STATUS=${BASH_REMATCH[1]}
 
-          shift #pops file off of input list
-        elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
+          echo "[$(date)] Fetching logs ..."
+          gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
+          if [[ $? != 0 ]]
+          then
+            echo "[$(date)] Fetching logs FAILED!"
+          fi
+        fi
+
+        if [[ $CONTAINER_STATUS ]]
         then
-          echo "[$(date)] Machine stopped: "$MACHINE_NAME
-          break
+          FAILED_CONTAINER_POLL_COUNT=0
+        else
+          let FAILED_CONTAINER_POLL_COUNT++
+          echo "[$(date)] Failed Count: "$FAILED_CONTAINER_POLL_COUNT
         fi
       done
-    fi
+
+      if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
+      then
+        OUTPUT_FILE=$OUTPUT_DIR"/"$(basename $F .fastq.gz)".cram"
+        echo "[$(date)] Uploading "$OUTPUT_FILE" ..."
+        START_TIME=$(date +%s)
+        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
+        EXIT_STATUS=$?
+        echo "[$(date)] Upload exit status: "$EXIT_STATUS
+        echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+        
+        if [[ $RETRY_COUNTER -gt 0 ]]
+        then
+          let RETRY_COUNTER--
+        fi
+
+        shift #pops file off of input list
+      elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
+      then
+        echo "[$(date)] Machine stopped: "$MACHINE_NAME
+        break
+      fi
+    done
   fi
 
   # Machine may exist even if "docker-machine create" fails.
