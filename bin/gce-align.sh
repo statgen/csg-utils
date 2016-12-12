@@ -109,8 +109,13 @@ do
           EXIT_STATUS=$?
           echo "[$(date)] Upload exit status: "$EXIT_STATUS
           echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-          shift #pops file off of input list
+          
+          if [[ $RETRY_COUNTER -gt 0 ]]
+          then
+            let RETRY_COUNTER--
+          fi
 
+          shift #pops file off of input list
         elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
         then
           echo "[$(date)] Machine stopped: "$MACHINE_NAME
@@ -129,12 +134,14 @@ do
     sleep $(( $RETRY_COUNTER * 600 ))"s"
   fi
 
-  let $RETRY_COUNTER++
+  let RETRY_COUNTER++
 done
 
 if [[ $# -gt 0 ]]
 then
   echo "[$(date)] Giving up at "$1
-done
+fi
+
+echo "Done."
 
 exit $EXIT_STATUS
