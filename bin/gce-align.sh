@@ -31,10 +31,8 @@ case "$PAIRED" in
   1) BWA_PAIRED_OPT="-p" ;;
 esac
 
-ZONES[0]="us-central1-b"
-ZONES[1]="us-central1-c"
-ZONES[2]="us-central1-f"
-MACHINE_ZONE=${ZONES[$[ $RANDOM % 3 ]]}
+ZONES=("us-central1-b" "us-central1-c" "us-central1-f")
+MACHINE_ZONE=${ZONES[$[ $RANDOM % ${#ZONES[@]} ]]}
 
 MACHINE_NAME=$(echo "align-${SAMPLE_ID}-${RG_IDENT}" | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | head -c62)
 MACHINE_TYPE_OPTS="--custom-cpu 32 --custom-memory 64GiB"

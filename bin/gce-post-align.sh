@@ -1,11 +1,9 @@
 #!/bin/bash
 set -o pipefail
 
-ZONES[0]="us-central1-a"
-ZONES[1]="us-central1-b"
-ZONES[2]="us-central1-c"
-ZONES[3]="us-central1-f"
-MACHINE_ZONE=${ZONES[$[ $RANDOM % 4 ]]}
+ZONES=("us-central1-a" "us-central1-b" "us-central1-c" "us-central1-f")
+MACHINE_ZONE=${ZONES[$[ $RANDOM % ${#ZONES[@]} ]]}
+
 MACHINE_NAME=$(echo "post-align-"$(basename $1) | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | head -c62)
 #MACHINE_TYPE_OPTS="--machine-type n1-standard-2"
 MACHINE_TYPE_OPTS="--custom-cpu 1 --custom-memory 6656MiB"

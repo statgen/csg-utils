@@ -1,11 +1,9 @@
 #!/bin/bash
 set -o pipefail
 
-ZONES[0]="us-central1-a"
-ZONES[1]="us-central1-b"
-ZONES[2]="us-central1-c"
-ZONES[3]="us-central1-f"
-MACHINE_ZONE=${ZONES[$[ $RANDOM % 4 ]]}
+ZONES=("us-central1-a" "us-central1-b" "us-central1-c" "us-central1-f")
+MACHINE_ZONE=${ZONES[$[ $RANDOM % ${#ZONES[@]} ]]}
+
 MACHINE_NAME=$(echo "pre-align-"$(basename $1 | cut -f 1 -d '.') | tr "[:upper:]" "[:lower:]" | sed "s/[^a-z0-9]/-/g" | head -c62)
 #MACHINE_TYPE_OPTS="--machine-type n1-standard-2"
 MACHINE_TYPE_OPTS="--custom-cpu 1 --custom-memory 6656MiB"
@@ -35,7 +33,7 @@ then
       | bam-ext-mem-sort-manager squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
       | samtools sort -l 1 -@ 1 -m 4000M -n -T /home/alignment/sort_tmp - \
       | samtools fixmate - - \
-      | bam-ext-mem-sort-manager bam2fastq --in -.bam --outBase $OUT_BASE --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip 2> /home/alignment/fastq_err.log
+      | bam-ext-mem-sort-manager bam2fastq --in -.bam --outBase $OUT_BASE --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip
       fastq_reads=\\\$((\\\$(zcat /home/alignment/*.fastq.gz | wc -l) / 4))
       samtools flagstat $INPUT_FILE > /home/alignment/cram_flagstat.txt
       cram_reads=\\\$(grep 'paired in sequencing' /home/alignment/cram_flagstat.txt | awk {'print \\\$1'})
@@ -80,10 +78,10 @@ then
 
     if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
     then
-      OUTPUT_DIR=$2
+      OUTPUT_DIR=$2"/"
       echo "[$(date)] Uploading $OUTPUT_FILE"
       START_TIME=$(date +%s)
-      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR
+      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.list $OUTPUT_DIR 
       EXIT_STATUS=$?
       echo "[$(date)] Upload exit status: $EXIT_STATUS"
       echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
