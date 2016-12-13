@@ -174,4 +174,12 @@ if [ $rc -eq 0 ]; then
   ls [% settings.out_dir %]/*.cram{,.ok,.flagstat}|grep -v recab
 fi
 
+if [ $rc -eq 0 ]; then
+  $MAPPER_LOG_CMD --message 'local-recab for [% sample.sample_id %] completed'
+  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
+else
+  $MAPPER_LOG_CMD --message 'local-recab for [% sample.sample_id %] failed' --level critical
+  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+fi
+
 exit $rc
