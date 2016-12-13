@@ -81,7 +81,7 @@ then
       OUTPUT_DIR=$2"/"
       echo "[$(date)] Uploading $OUTPUT_FILE"
       START_TIME=$(date +%s)
-      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.list $OUTPUT_DIR 
+      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp ${OUT_BASE}.list $OUTPUT_DIR 
       EXIT_STATUS=$?
       echo "[$(date)] Upload exit status: $EXIT_STATUS"
       echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
