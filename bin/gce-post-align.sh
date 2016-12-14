@@ -1,5 +1,12 @@
 #!/bin/bash
-set -o pipefail
+#
+# Usage:
+#   gce-post-align.sh [input_uri] [output_uri]
+#
+#   [input_uri]  - Google Storage Bucket URI for aligned crams (e.g. gs://topmed-crams/<sample_id>
+#   [output_uri] - Google Storage Bucket URI for recab crams (e.g. gs://topmed-recabs/<sample_id>/<recab_file>
+#
+set -u -o pipefail
 
 ZONES=("us-central1-a" "us-central1-b" "us-central1-c" "us-central1-f")
 MACHINE_ZONE=${ZONES[$[ $RANDOM % ${#ZONES[@]} ]]}
@@ -14,7 +21,7 @@ EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
 then
   # Give ssh daemon some time to get running.
-  sleep 30s  
+  sleep 30s
 
   echo "[$(date)] Downloading input crams"
   START_TIME=$(date +%s)

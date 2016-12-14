@@ -11,7 +11,7 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=[% job.email %]
 #SBATCH --job-name=[% job.job_name %]
-#SBATCH --qos=topmed-local-recab
+#SBATCH --qos=topmed-cloud-recab
 
 JOB_ID=$SLURM_JOB_ID
 NODELIST=$SLURM_JOB_NODELIST
@@ -106,81 +106,48 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-rc=0
-for CRAM in ${INPUT_DIR}/*.cram; do
-  SORTED_FILE=${JOB_TMP_DIR}/$(basename $CRAM .cram).sorted.bam
-  $MAPPER_LOG_CMD --message "sorting $CRAM to bam $SORTED_FILE"
-  [% gotcloud.samtools %] sort \
-    --threads [% job.procs %] \
-    --reference $REFERENCE \
-    -T $JOB_TMP_DIR \
-    -o $SORTED_FILE $CRAM
+input_bucket_uri=[% google.cram_bucket %]/[% sample.sample_id %]
+output_bucket_uri=[% google.recab_bucket %]/[% sample.sample_id %]
+recab_file=[% sample.sample_id %].recab.cram
 
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --message "failed to sort $CRAM" --level critical
-    rc=1
-    break
-  fi
-done
-
-MERGED_BAM=${JOB_TMP_DIR}/merged.bam
-if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message "merging sorted bams to $MERGED_BAM"
-  [% gotcloud.samtools %] merge --threads [% job.procs %] $MERGED_BAM ${JOB_TMP_DIR}/*.sorted.bam
-
-  if [ $? -ne 0 ]; then
-    $MAPPER_LOG_CMD --message "merge failed for $MERGED_BAM" --level critical
-    rc=1
-  else
-    RECAB_FILE=[% settings.out_dir %]/[% sample.sample_id %].recab.cram
-    $MAPPER_LOG_CMD --message "starting recab to $RECAB_FILE"
-
-    [% gotcloud.dedup %] dedup_LowMem \
-      --allReadNames \
-      --binCustom \
-      --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 \
-      --log [% settings.out_dir %]/dedup_lowmem.metrics \
-      --recab \
-      --in $MERGED_BAM \
-      --out -.ubam \
-      --refFile $REFERENCE \
-      --dbsnp $DBSNP \
-      | [% gotcloud.samtools %] view -h -C -T $REFERENCE -o $RECAB_FILE --threads [% job.procs %]
-
-    if [ $? -ne 0 ]; then
-      $MAPPER_LOG_CMD --message "failed to recab $MERGED_BAM" --level critical
-      rc=1
-    fi
-  fi
-fi
-
-$MAPPER_LOG_CMD --message "deleting sorted bams"
-#rm -vrf ${JOB_TMP_DIR}/*.sorted.bam
+$MAPPER_LOG_CMD --message 'begining post-align for sample [% sample.sample_id %]'
+[% settings.project_dir %]/bin/gce-post-align.sh $input_bucket_uri $output_bucket_uri/$recab_file
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message "failed to delete sorted bams" --level critical
-  rc=1
+  $MAPPER_LOG_CMD --message '[% sample.sample_id %] failed post-align' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
 fi
 
-$MAPPER_LOG_CMD --message "deleting $MERGED_BAM"
-#rm -vrf $MERGED_BAM
+OUT_DIR=[% settings.out_dir %]
+if [ ! -e $OUT_DIR ]; then
+  $MAPPER_LOG_CMD --message "missing OUT_DIR $OUT_DIR, creating"
+  mkdir -pv $OUT_DIR
+fi
+
+gsutil -m rsync -r $output_bucket_uri $OUT_DIR
 if [ $? -ne 0 ]; then
-  $MAPPER_LOG_CMD --message "failed to delete merged bam" --level critical
-  rc=1
+  $MAPPER_LOG_CMD --message 'failed to download recab cram for sample [% sample.sample_id %]' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
 fi
 
-if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message "deleting chunked aligned cram"
-  # TODO - add and | xargs rm
-  # TODO - delete *.cram *.cram.ok and *.cram.flagstat but not *.recab.cram
-  ls [% settings.out_dir %]/*.cram{,.ok,.flagstat}|grep -v recab
+flagstat_file=$OUT_DIR/${recab_file}.flagstat
+[% gotcloud.samtools %] flagstat $OUT_DIR/$recab_file > $flagstat_file
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to flagstat $flagstat_file" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
 fi
 
-if [ $rc -eq 0 ]; then
-  $MAPPER_LOG_CMD --message 'local-recab for [% sample.sample_id %] completed'
-  $MAPPER_UPDATE_CMD --state completed --exit-code $rc
-else
-  $MAPPER_LOG_CMD --message 'local-recab for [% sample.sample_id %] failed' --level critical
-  $MAPPER_UPDATE_CMD --state failed --exit-code $rc
+orig_reads=[% sample.flagstat %]
+recab_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+if [ $recab_reads -ne $orig_reads ]; then
+  $MAPPER_LOG_CMD --message "recab cram reads do not match original $orig_reads:$recab_reads" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
 fi
 
-exit $rc
+$MAPPER_LOG_CMD --message 'cloud-recab for [% sample.sample_id %] completed'
+$MAPPER_UPDATE_CMD --state completed --exit-code $rc
+
+exit 0

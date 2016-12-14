@@ -31,7 +31,7 @@ sub opt_spec {
       'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging|local-recab)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging|local-recab/},
+          regex => sub {shift =~ /(?:cloud\-)?bam2fastq|(?:local|cloud)\-align|all|mapping|merging|(?:local|cloud)-recab/},
         }
       }
     ], [
@@ -160,6 +160,13 @@ sub execute {
 
       if ($sample->has_fastqs_with_unpaired_reads) {
         $logger->debug('found unpaired reads in the fastqs for sample ' . $sample->sample_id) if $debug;
+        next;
+      }
+    }
+
+    if ($step->name eq 'cloud-bam2fastq') {
+      unless ($sample->is_available('bam2fastq', $build)) {
+        $logger->info('sample ' . $sample->sample_id . ' is not available for processing bam2fastq|cloud-bam2fastq') if $debug;
         next;
       }
     }
@@ -301,7 +308,21 @@ sub execute {
     my $cram_bucket = $config->get($project, 'google_cram_bucket');
     $logger->debug("google cram bucket: $cram_bucket") if $debug;
     unless ($cram_bucket) {
-      $logger->critical('Google Storage Bucket for crams is not default!');
+      $logger->critical('Google Storage Bucket for crams is not defined!');
+      exit 1;
+    }
+
+    my $incoming_bucket = $config->get($project, 'google_incoming_bucket');
+    $logger->debug("google incoming bucket: $incoming_bucket") if $debug;
+    unless ($incoming_bucket) {
+      $logger->critical('Google Storage Bucket for incoming samples is not defined!');
+      exit 1;
+    }
+
+    my $recab_bucket = $config->get($project, 'google_recab_bucket');
+    $logger->debug("google recab bucket: $recab_bucket") if $debug;
+    unless ($recab_bucket) {
+      $logger->critical('Google Storage Bucket for recab samples is not defined!');
       exit 1;
     }
 
@@ -359,8 +380,10 @@ sub execute {
     };
 
     $params->{google} = {
-      fastq_bucket => $fastq_bucket,
-      cram_bucket  => $cram_bucket,
+      fastq_bucket    => $fastq_bucket,
+      cram_bucket     => $cram_bucket,
+      incoming_bucket => $incoming_bucket,
+      recab_bucket    => $recab_bucket,
     };
     ## use tidy
 

@@ -42,6 +42,14 @@ has 'record' => (
   is       => 'ro',
   isa      => 'CSG::Mapper::DB::Schema::Result::Sample',
   required => 1,
+  handles  => [
+    qw(
+      flagstat
+      run_dir
+      filename
+      sample_id
+    )
+  ],
 );
 
 has 'prefix' => (
@@ -77,27 +85,6 @@ has 'pi' => (
   isa     => 'Str',
   lazy    => 1,
   builder => '_build_pi',
-);
-
-has 'run_dir' => (
-  is      => 'ro',
-  isa     => 'Str',
-  lazy    => 1,
-  builder => '_build_run_dir',
-);
-
-has 'filename' => (
-  is      => 'ro',
-  isa     => 'Str',
-  lazy    => 1,
-  builder => '_build_filename',
-);
-
-has 'sample_id' => (
-  is      => 'ro',
-  isa     => 'Str',
-  lazy    => 1,
-  builder => '_build_sample_id',
 );
 
 has 'incoming_path' => (
@@ -215,18 +202,6 @@ sub _build_center {
 
 sub _build_pi {
   return shift->record->pi->name;
-}
-
-sub _build_run_dir {
-  return shift->record->run_dir;
-}
-
-sub _build_filename {
-  return shift->record->filename;
-}
-
-sub _build_sample_id {
-  return shift->record->sample_id;
 }
 
 sub _build_incoming_path {
