@@ -31,7 +31,7 @@ sub opt_spec {
       'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging|local-recab)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging|local-recab/},
+          regex => sub {shift =~ /(?:cloud\-)?bam2fastq|(?:local|cloud)\-align|all|mapping|merging|(?:local|cloud)-recab/},
         }
       }
     ], [
@@ -319,6 +319,13 @@ sub execute {
       exit 1;
     }
 
+    my $recab_bucket = $config->get($project, 'google_recab_bucket');
+    $logger->debug("google recab bucket: $recab_bucket") if $debug;
+    unless ($recab_bucket) {
+      $logger->critical('Google Storage Bucket for recab samples is not defined!');
+      exit 1;
+    }
+
     ## no tidy
     my $params     = {sample => $sample_obj};
     $params->{job} = {
@@ -376,6 +383,7 @@ sub execute {
       fastq_bucket    => $fastq_bucket,
       cram_bucket     => $cram_bucket,
       incoming_bucket => $incoming_bucket,
+      recab_bucket    => $recab_bucket,
     };
     ## use tidy
 
