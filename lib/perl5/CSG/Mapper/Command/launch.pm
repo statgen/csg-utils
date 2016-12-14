@@ -164,6 +164,13 @@ sub execute {
       }
     }
 
+    if ($step->name eq 'cloud-bam2fastq') {
+      unless ($sample->is_available('bam2fastq', $build)) {
+        $logger->info('sample ' . $sample->sample_id . ' is not available for processing bam2fastq|cloud-bam2fastq') if $debug;
+        next;
+      }
+    }
+
     my $sample_obj = CSG::Mapper::Sample->new(
       cluster => $cluster,
       record  => $sample,
@@ -301,7 +308,14 @@ sub execute {
     my $cram_bucket = $config->get($project, 'google_cram_bucket');
     $logger->debug("google cram bucket: $cram_bucket") if $debug;
     unless ($cram_bucket) {
-      $logger->critical('Google Storage Bucket for crams is not default!');
+      $logger->critical('Google Storage Bucket for crams is not defined!');
+      exit 1;
+    }
+
+    my $incoming_bucket = $config->get($project, 'google_incoming_bucket');
+    $logger->debug("google incoming bucket: $incoming_bucket") if $debug;
+    unless ($incoming_bucket) {
+      $logger->critical('Google Storage Bucket for incoming samples is not defined!');
       exit 1;
     }
 
@@ -359,8 +373,9 @@ sub execute {
     };
 
     $params->{google} = {
-      fastq_bucket => $fastq_bucket,
-      cram_bucket  => $cram_bucket,
+      fastq_bucket    => $fastq_bucket,
+      cram_bucket     => $cram_bucket,
+      incoming_bucket => $incoming_bucket,
     };
     ## use tidy
 

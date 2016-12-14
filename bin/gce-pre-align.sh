@@ -1,5 +1,12 @@
 #!/bin/bash
-set -o pipefail
+#
+# Usage:
+#   gce-prealign.sh [input_uri] [output_uri]
+#
+#   [input_uri]  - Google Storage Bucket input URI (e.g. gs://topmed-incoming/<center>/<run_dir>/<sample>
+#   [output_uri] - Google Storage Bucket output URI (e.g. gs://topmed-fastqs/<sample_id>
+#
+set -u -o pipefail
 
 ZONES=("us-central1-a" "us-central1-b" "us-central1-c" "us-central1-f")
 MACHINE_ZONE=${ZONES[$[ $RANDOM % ${#ZONES[@]} ]]}
@@ -14,13 +21,13 @@ EXIT_STATUS=$?
 if [[ $EXIT_STATUS == 0 ]]
 then
   # Give ssh daemon some time to get running.
-  sleep 30s  
+  sleep 30s
 
   echo "[$(date)] Downloading input crams"
   START_TIME=$(date +%s)
   INPUT_FILE="/home/alignment/"$(basename $1)
   OUT_BASE="/home/alignment/"$(basename $1 | cut -f 1 -d '.')
- 
+
   gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp $1 $INPUT_FILE
   EXIT_STATUS=$?
   echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
@@ -81,7 +88,7 @@ then
       OUTPUT_DIR=$2"/"
       echo "[$(date)] Uploading $OUTPUT_FILE"
       START_TIME=$(date +%s)
-      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp ${OUT_BASE}.list $OUTPUT_DIR 
+      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp ${OUT_BASE}.list $OUTPUT_DIR
       EXIT_STATUS=$?
       echo "[$(date)] Upload exit status: $EXIT_STATUS"
       echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
