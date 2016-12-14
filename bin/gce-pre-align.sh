@@ -28,7 +28,7 @@ then
   if [[ $EXIT_STATUS == 0 ]]
   then
     REMOTE_COMMAND="set -euo pipefail &&
-      export REF_PATH=/home/alignment/ref/md5/%2s/%2s/%s &&
+      export REF_CACHE=/home/alignment/ref/md5/%2s/%2s/%s &&
       samtools view -uh -F 0x900 $INPUT_FILE \
       | bam-ext-mem-sort-manager squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
       | samtools sort -l 1 -@ 1 -m 4000M -n -T /home/alignment/sort_tmp - \
