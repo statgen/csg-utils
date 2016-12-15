@@ -150,4 +150,23 @@ fi
 
 echo "Done."
 
-exit $EXIT_STATUS
+if [[ $RETRY_COUNTER == 5 ]]
+then
+  exit -1
+fi
+
+exit $CONTAINER_EXIT_STATUS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
