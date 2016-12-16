@@ -55,7 +55,7 @@ do
     CONTAINER_ID=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$COMMAND"\")
 
     EXIT_STATUS=$?
-  
+
     while [[ $# -gt 0 && $EXIT_STATUS == 0 && $CONTAINER_EXIT_STATUS == 0 ]]
     do
       F=$1
@@ -70,7 +70,7 @@ do
         gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker start $CONTAINER_ID
         EXIT_STATUS=$?
 
-        if [[ $EXIT_STATUS == 0 ]] 
+        if [[ $EXIT_STATUS == 0 ]]
         then
           CONTAINER_IS_RUNNING=1
           FAILED_CONTAINER_POLL_COUNT=0
@@ -99,7 +99,7 @@ do
                 gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp /home/alignment/output.cram.ok $OUTPUT_FILE".ok"
                 EXIT_STATUS=$?
                 echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-                
+
                 if [[ $EXIT_STATUS == 0 ]]
                 then
                   if [[ $RETRY_COUNTER -gt 0 ]]
@@ -134,7 +134,7 @@ do
   # Machine may exist even if "docker-machine create" fails.
   echo "[$(date)] Cleaning up ..."
   gcloud compute instances delete --zone $MACHINE_ZONE --quiet $MACHINE_NAME
-  
+
   if [[ $# -gt 0 ]]
   then
     sleep $(( $RETRY_COUNTER * 600 ))"s"
@@ -148,7 +148,7 @@ then
   echo "[$(date)] Giving up at "$1
 fi
 
-echo "Done."
+echo "[$(date)] Done"
 
 if [[ $RETRY_COUNTER == 5 ]]
 then
@@ -156,17 +156,3 @@ then
 fi
 
 exit $CONTAINER_EXIT_STATUS
-
-
-
-
-
-
-
-
-
-
-
-
-
-
