@@ -52,7 +52,7 @@ then
         EXIT_STATUS=${BASH_REMATCH[1]}
 
         echo "[$(date)] Fetching logs"
-        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
+        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker logs $CONTAINER_ID
         if [[ $? != 0 ]]
         then
           echo "[$(date)] Fetching logs FAILED!"

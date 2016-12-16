@@ -35,17 +35,17 @@ then
   if [[ $EXIT_STATUS == 0 ]]
   then
     REMOTE_COMMAND="set -euo pipefail &&
-      export REF_PATH=/home/alignment/ref/md5/%2s/%2s/%s &&
+      export REF_CACHE=/home/alignment/ref/md5/%2s/%2s/%s &&
       samtools view -uh -F 0x900 $INPUT_FILE \
       | bam-ext-mem-sort-manager squeeze --in -.ubam --keepDups --rmTags AS:i,BD:Z,BI:Z,XS:i,MC:Z,MD:Z,NM:i,MQ:i --out -.ubam \
       | samtools sort -l 1 -@ 1 -m 4000M -n -T /home/alignment/sort_tmp - \
       | samtools fixmate - - \
-      | bam-ext-mem-sort-manager bam2fastq --in -.bam --outBase $OUT_BASE --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip
-      fastq_reads=\\\$((\\\$(zcat /home/alignment/*.fastq.gz | wc -l) / 4))
-      samtools flagstat $INPUT_FILE > /home/alignment/cram_flagstat.txt
-      cram_reads=\\\$(grep 'paired in sequencing' /home/alignment/cram_flagstat.txt | awk {'print \\\$1'})
-      echo 'In read count: '\\\$cram_reads
-      echo 'Out read count: '\\\$fastq_reads
+      | bam-ext-mem-sort-manager bam2fastq --in -.bam --outBase $OUT_BASE --maxRecordLimitPerFq 20000000 --sortByReadNameOnTheFly --readname --gzip;
+      fastq_reads=\\\$((\\\$(zcat /home/alignment/*.fastq.gz | wc -l) / 4));
+      samtools flagstat $INPUT_FILE > /home/alignment/cram_flagstat.txt;
+      cram_reads=\\\$(grep 'paired in sequencing' /home/alignment/cram_flagstat.txt | awk {'print \\\$1'});
+      echo 'In read count: '\\\$cram_reads;
+      echo 'Out read count: '\\\$fastq_reads;
       if [[ \\\$fastq_reads != \\\$cram_reads ]]; then echo FAILED; exit -1; fi"
 
     echo "[$(date)] Creating container"
@@ -67,7 +67,7 @@ then
         EXIT_STATUS=${BASH_REMATCH[1]}
 
         echo "[$(date)] Fetching logs"
-        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME --command "sudo docker logs $CONTAINER_ID"
+        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker logs $CONTAINER_ID
         if [[ $? != 0 ]]
         then
           echo "[$(date)] Fetching logs FAILED!"
