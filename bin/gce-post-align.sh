@@ -77,7 +77,7 @@ then
       EXIT_STATUS=$?
       echo "[$(date)] Upload exit status: $EXIT_STATUS"
       echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-    elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
+    elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
     then
       echo "[$(date)] Lost communication with $MACHINE_NAME"
       EXIT_STATUS=-1
