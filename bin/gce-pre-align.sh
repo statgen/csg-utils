@@ -86,13 +86,13 @@ then
     if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
     then
       OUTPUT_DIR=$2"/"
-      echo "[$(date)] Uploading $OUTPUT_FILE"
+      echo "[$(date)] Uploading ouput fastq files"
       START_TIME=$(date +%s)
       gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/*.fastq.gz $OUTPUT_DIR && gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp ${OUT_BASE}.list $OUTPUT_DIR
       EXIT_STATUS=$?
       echo "[$(date)] Upload exit status: $EXIT_STATUS"
       echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-    elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
+    elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
     then
       echo "[$(date)] Lost communication with $MACHINE_NAME"
       EXIT_STATUS=-1
