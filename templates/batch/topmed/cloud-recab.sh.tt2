@@ -38,7 +38,7 @@ set -u -o pipefail
 META_ID=[% settings.meta_id %]
 MAPPER_CMD=[% settings.mapper_cmd %]
 MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
-MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step [% settings.step %]"
 
 TMP_DIR=[% settings.tmp_dir %]
 INPUT_DIR=[% settings.out_dir %]

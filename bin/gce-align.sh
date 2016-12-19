@@ -154,7 +154,7 @@ then
   echo "[$(date)] Giving up at "$1
 fi
 
-echo "Done."
+echo "[$(date)] Done."
 
 if [[ $RETRY_COUNTER == 5 ]]
 then

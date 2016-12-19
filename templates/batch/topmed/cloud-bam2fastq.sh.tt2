@@ -127,7 +127,7 @@ incoming_bucket_uri=[% google.incoming_bucket %]/[% sample.center %]/[% sample.r
 output_bucket_uri=[% google.fastq_bucket %]/[% sample.sample_id %]
 
 $MAPPER_LOG_CMD --message "uploading [% sample.sample_id %] to google storage bucket $incoming_bucket_uri"
-gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp [% sample.incoming_path %] $incoming_bucket_uri
+gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp -n [% sample.incoming_path %] $incoming_bucket_uri
 if [ $? -ne 0 ]; then
   $MAPPER_LOG_CMD --message "failed to upload to bucket $incoming_bucket_uri" --level critical
   $MAPPER_UPDATE_CMD --state failed
