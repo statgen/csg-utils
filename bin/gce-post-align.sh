@@ -23,64 +23,70 @@ then
   # Give ssh daemon some time to get running.
   sleep 30s
 
-  echo "[$(date)] Downloading input crams"
-  START_TIME=$(date +%s)
-  gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil cp $1'/*.cram' /home/alignment/
+  SSH_COMMAND=$(gcloud compute ssh --dry-run --zone $MACHINE_ZONE $MACHINE_NAME)
   EXIT_STATUS=$?
-  echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
   if [[ $EXIT_STATUS == 0 ]]
   then
-    REMOTE_COMMAND="set -euo pipefail; for INPUT_FILE in /home/alignment/*.cram; do samtools sort --reference /home/alignment/ref/hs38DH.fa --threads 1 -T /home/alignment/tmp -o \\\${INPUT_FILE%.cram}.sorted.bam \\\$INPUT_FILE; rm \\\$INPUT_FILE; done; samtools merge --threads 1 /home/alignment/merged.bam /home/alignment/*.sorted.bam; rm /home/alignment/*.sorted.bam; bam-non-primary-dedup dedup_LowMem --allReadNames --binCustom --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 --log /home/alignment/dedup_lowmem.metrics --recab --in /home/alignment/merged.bam --out -.ubam --refFile /home/alignment/ref/hs38DH.fa --dbsnp /home/alignment/dbsnp/Homo_sapiens_assembly38.dbsnp138.vcf.gz | samtools view -h -C -T /home/alignment/ref/hs38DH.fa -o /home/alignment/output.cram --threads 1"
+    echo "[$(date)] Downloading input crams"
+    START_TIME=$(date +%s)
+    eval $SSH_COMMAND -- gsutil cp $1'/*.cram' /home/alignment/
+    EXIT_STATUS=$?
+    echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
 
-    echo "[$(date)] Creating container"
-    CONTAINER_ID=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$REMOTE_COMMAND"\")
+    if [[ $EXIT_STATUS == 0 ]]
+    then
+      REMOTE_COMMAND="set -euo pipefail; for INPUT_FILE in /home/alignment/*.cram; do samtools sort --reference /home/alignment/ref/hs38DH.fa --threads 1 -T /home/alignment/tmp -o \\\${INPUT_FILE%.cram}.sorted.bam \\\$INPUT_FILE; rm \\\$INPUT_FILE; done; samtools merge --threads 1 /home/alignment/merged.bam /home/alignment/*.sorted.bam; rm /home/alignment/*.sorted.bam; bam-non-primary-dedup dedup_LowMem --allReadNames --binCustom --binQualS 0:2,3:3,4:4,5:5,6:6,7:10,13:20,23:30 --log /home/alignment/dedup_lowmem.metrics --recab --in /home/alignment/merged.bam --out -.ubam --refFile /home/alignment/ref/hs38DH.fa --dbsnp /home/alignment/dbsnp/Homo_sapiens_assembly38.dbsnp138.vcf.gz | samtools view -h -C -T /home/alignment/ref/hs38DH.fa -o /home/alignment/output.cram --threads 1"
 
-    echo "[$(date)] Starting container"
-    gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker start $CONTAINER_ID
+      echo "[$(date)] Creating container"
+      CONTAINER_ID=$(eval $SSH_COMMAND -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$REMOTE_COMMAND"\")
 
-    CONTAINER_IS_RUNNING=1
-    FAILED_CONTAINER_POLL_COUNT=0
-    while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
-    do
-      sleep 180s
+      echo "[$(date)] Starting container"
+      eval $SSH_COMMAND -- sudo docker start $CONTAINER_ID
 
-      CONTAINER_STATUS=$(gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker ps -al --format {{.Status}})
-      if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
-      then
-        CONTAINER_IS_RUNNING=0
-        EXIT_STATUS=${BASH_REMATCH[1]}
+      CONTAINER_IS_RUNNING=1
+      FAILED_CONTAINER_POLL_COUNT=0
+      while [[ $CONTAINER_IS_RUNNING != 0 && $FAILED_CONTAINER_POLL_COUNT -lt 5 ]]
+      do
+        sleep 180s
 
-        echo "[$(date)] Fetching logs"
-        gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- sudo docker logs $CONTAINER_ID
-        if [[ $? != 0 ]]
+        CONTAINER_STATUS=$(eval $SSH_COMMAND -- sudo docker ps -al --format {{.Status}})
+        if [[ $CONTAINER_STATUS =~ Exited\ \((.*)\) ]]
         then
-          echo "[$(date)] Fetching logs FAILED!"
+          CONTAINER_IS_RUNNING=0
+          EXIT_STATUS=${BASH_REMATCH[1]}
+
+          echo "[$(date)] Fetching logs"
+          eval $SSH_COMMAND -- sudo docker logs $CONTAINER_ID
+          if [[ $? != 0 ]]
+          then
+            echo "[$(date)] Fetching logs FAILED!"
+          fi
         fi
-      fi
 
-      if [[ $CONTAINER_STATUS ]]
+        if [[ $CONTAINER_STATUS ]]
+        then
+          FAILED_CONTAINER_POLL_COUNT=0
+        else
+          let FAILED_CONTAINER_POLL_COUNT++
+          echo "[$(date)] Failed Count: $FAILED_CONTAINER_POLL_COUNT"
+        fi
+      done
+
+      if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
       then
-        FAILED_CONTAINER_POLL_COUNT=0
-      else
-        let FAILED_CONTAINER_POLL_COUNT++
-        echo "[$(date)] Failed Count: $FAILED_CONTAINER_POLL_COUNT"
+        OUTPUT_FILE=$2
+        echo "[$(date)] Uploading $OUTPUT_FILE"
+        START_TIME=$(date +%s)
+        eval $SSH_COMMAND -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE
+        EXIT_STATUS=$?
+        echo "[$(date)] Upload exit status: $EXIT_STATUS"
+        echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
+      elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 ]]
+      then
+        echo "[$(date)] Lost communication with $MACHINE_NAME"
+        EXIT_STATUS=-1
       fi
-    done
-
-    if [[ $CONTAINER_IS_RUNNING == 0 && $EXIT_STATUS == 0 ]]
-    then
-      OUTPUT_FILE=$2
-      echo "[$(date)] Uploading $OUTPUT_FILE"
-      START_TIME=$(date +%s)
-      gcloud compute ssh --zone $MACHINE_ZONE $MACHINE_NAME -- gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp /home/alignment/output.cram $OUTPUT_FILE
-      EXIT_STATUS=$?
-      echo "[$(date)] Upload exit status: $EXIT_STATUS"
-      echo "[$(date)] Elapsed time: "$(( $(date +%s) - $START_TIME ))"s"
-    elif [[ $FAILED_CONTAINER_POLL_COUNT == 5 && $RETRY_COUNTER -lt 4 ]]
-    then
-      echo "[$(date)] Lost communication with $MACHINE_NAME"
-      EXIT_STATUS=-1
     fi
   fi
 fi
