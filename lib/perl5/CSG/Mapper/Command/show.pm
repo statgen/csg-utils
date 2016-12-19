@@ -141,7 +141,7 @@ sub execute {
           job_id  => $result->job->job_id
         );
 
-        my $job_state = $job->state;
+        my $job_state = $job->state // 'unknown';
         say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime() . ' JOBID: ' . $result->job->id . ' CLSTJOBID: ' . $result->job->job_id . ' JOBSTATUS: ' . $job_state;
       } else {
         say $result->result->status_line() . 'MODIFIED: ' . $result->created_at->datetime();
