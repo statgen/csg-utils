@@ -57,7 +57,7 @@ do
     then
       COMMAND="set -o pipefail; rm -f /home/alignment/output.cram /home/alignment/output.cram.ok; bwa mem -t 32 -K 100000000 -Y $BWA_PAIRED_OPT -R '$RG_LINE' /home/alignment/ref/hs38DH.fa /home/alignment/input.fastq.gz | samblaster -a --addMateTags | samtools view -@ 32 -T /home/alignment/ref/hs38DH.fa -C -o /home/alignment/output.cram - && touch /home/alignment/output.cram.ok"
 
-      CONTAINER_ID=$(eval $SSH_COMMAND -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$COMMAND"\")
+      CONTAINER_ID=$(eval $SSH_COMMAND -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c '\""$COMMAND"\"')
 
       EXIT_STATUS=$?
     

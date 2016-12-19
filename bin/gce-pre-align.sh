@@ -54,7 +54,7 @@ then
         if [[ \\\$fastq_reads != \\\$cram_reads ]]; then echo FAILED; exit -1; fi"
 
       echo "[$(date)] Creating container"
-      CONTAINER_ID=$(eval $SSH_COMMAND -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c \""$REMOTE_COMMAND"\")
+      CONTAINER_ID=$(eval $SSH_COMMAND -- sudo docker create -v "/home/alignment:/home/alignment" statgen/alignment /bin/bash -c '\""$REMOTE_COMMAND"\"')
 
       echo "[$(date)] Starting container"
       eval $SSH_COMMAND -- sudo docker start $CONTAINER_ID
