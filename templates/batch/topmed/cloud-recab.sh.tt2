@@ -149,6 +149,6 @@ if [ $recab_reads -ne $orig_reads ]; then
 fi
 
 $MAPPER_LOG_CMD --message 'cloud-recab for [% sample.sample_id %] completed'
-$MAPPER_UPDATE_CMD --state completed --exit-code $rc
+$MAPPER_UPDATE_CMD --state completed --exit-code 0
 
 exit 0
