@@ -28,10 +28,10 @@ sub opt_spec {
     ['requested',         'Run only samples that are in the requested state'],
     [
       'step=s',
-      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging)', {
+      'Job step to launch (valid values: bam2fastq|align|cloud-align|all|mapping|merging|local-recab)', {
         default   => 'all',
         callbacks => {
-          regex => sub {shift =~ /bam2fastq|local\-align|cloud\-align|all|mapping|merging/},
+          regex => sub {shift =~ /(?:cloud\-)?bam2fastq|(?:local|cloud)\-align|all|mapping|merging|(?:local|cloud)-recab/},
         }
       }
     ], [
@@ -160,6 +160,13 @@ sub execute {
 
       if ($sample->has_fastqs_with_unpaired_reads) {
         $logger->debug('found unpaired reads in the fastqs for sample ' . $sample->sample_id) if $debug;
+        next;
+      }
+    }
+
+    if ($step->name eq 'cloud-bam2fastq') {
+      unless ($sample->is_available('bam2fastq', $build)) {
+        $logger->info('sample ' . $sample->sample_id . ' is not available for processing bam2fastq|cloud-bam2fastq') if $debug;
         next;
       }
     }
@@ -301,7 +308,21 @@ sub execute {
     my $cram_bucket = $config->get($project, 'google_cram_bucket');
     $logger->debug("google cram bucket: $cram_bucket") if $debug;
     unless ($cram_bucket) {
-      $logger->critical('Google Storage Bucket for crams is not default!');
+      $logger->critical('Google Storage Bucket for crams is not defined!');
+      exit 1;
+    }
+
+    my $incoming_bucket = $config->get($project, 'google_incoming_bucket');
+    $logger->debug("google incoming bucket: $incoming_bucket") if $debug;
+    unless ($incoming_bucket) {
+      $logger->critical('Google Storage Bucket for incoming samples is not defined!');
+      exit 1;
+    }
+
+    my $recab_bucket = $config->get($project, 'google_recab_bucket');
+    $logger->debug("google recab bucket: $recab_bucket") if $debug;
+    unless ($recab_bucket) {
+      $logger->critical('Google Storage Bucket for recab samples is not defined!');
       exit 1;
     }
 
@@ -340,6 +361,7 @@ sub execute {
       mapper_cmd      => $PROGRAM_NAME,
       cluster         => $cluster,
       project         => $project,
+      step            => $step->name,
       next_step       => $opts->{next_step},
       skip_alignment  => ($opts->{skip_alignment}) ? $TRUE : $FALSE,
     };
@@ -351,14 +373,17 @@ sub execute {
       cmd          => File::Spec->join($gotcloud_root, 'gotcloud'),
       samtools     => File::Spec->join($gotcloud_root, 'bin', 'samtools'),
       bam_util     => File::Spec->join($gotcloud_root, '..', 'bamUtil', 'bin', 'bam'),
+      dedup        => File::Spec->join($gotcloud_root, '..', 'bamutil-dedup', 'bin', 'bam'),
       bwa          => File::Spec->join($gotcloud_root, 'bin', 'bwa'),
       samblaster   => File::Spec->join($gotcloud_root, '..',  'samblaster', 'bin', 'samblaster'),    # TODO - need real path
       illumina_ref => File::Spec->join($prefix, $config->get('gotcloud', 'illumina_ref')),
     };
 
     $params->{google} = {
-      fastq_bucket => $fastq_bucket,
-      cram_bucket  => $cram_bucket,
+      fastq_bucket    => $fastq_bucket,
+      cram_bucket     => $cram_bucket,
+      incoming_bucket => $incoming_bucket,
+      recab_bucket    => $recab_bucket,
     };
     ## use tidy
 
@@ -383,6 +408,8 @@ sub execute {
 
       my $rg_idx = 0;
       for my $read_group ($sample->read_groups) {
+        next unless $sample->has_unaligned_fastqs_in_read_group($read_group);
+
         push @{$params->{fastq}->{indexes}}, $rg_idx;
 
         my $rg_ref = {

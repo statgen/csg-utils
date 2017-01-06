@@ -1,0 +1,154 @@
+#!/bin/sh
+
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=[% job.procs %]
+#SBATCH --mem=[% job.memory %]
+#SBATCH --gres=tmp:300
+#SBATCH --time=[% job.walltime %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --partition=topmed
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --job-name=[% job.job_name %]
+#SBATCH --begin=now+[% job.jobs_cnt * 10 %]
+#SBATCH --qos=topmed-cloud-recab
+
+JOB_ID=$SLURM_JOB_ID
+NODELIST=$SLURM_JOB_NODELIST
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l nodes=1:ppn=[% job.procs %]
+#PBS -l walltime=[% job.walltime %]
+#PBS -l pmem=[% job.memory %]gb
+#PBS -m a
+#PBS -d [% job.workdir %]
+#PBS -M [% job.email %]
+#PBS -q flux
+#PBS -l qos=flux
+#PBS -A [% job.account %]
+#PBS -V
+#PBS -j oe
+#PBS -N [% job.job_name %]
+
+JOB_ID=$PBS_JOBID
+NODELIST=$(cat $PBS_NODEFILE)
+[% END -%]
+
+set -u -o pipefail
+
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step [% settings.step %]"
+
+TMP_DIR=[% settings.tmp_dir %]
+INPUT_DIR=[% settings.out_dir %]
+
+DBSNP=/net/fantasia/home/hmkang/code/working/gotcloud_topmed_tmp/resources/Homo_sapiens_assembly38.dbsnp138.vcf.gz # XXX - why is this here?
+REFERENCE=[% gotcloud.ref_dir %]/hs38DH.fa
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST --step [% settings.step %]
+
+JOB_TMP_BASE=/tmp/[% settings.project %]
+[% IF settings.cluster == 'csg' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    job_state="$(sacct -j $id -X -n -o state%7)"
+    if [ "$job_state" != "RUNNING " ]; then # XXX - left trailing space on purpose
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% ELSIF settings.cluster == 'flux' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    qstat -f -e $id > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% END -%]
+
+JOB_TMP_DIR=${JOB_TMP_BASE}/${JOB_ID}
+$MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
+mkdir -vp $JOB_TMP_DIR
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+elif [ ! -d $JOB_TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message 'creating output directory [% settings.out_dir %]'
+mkdir -p [% settings.out_dir %]
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to create output directory [% settings.out_dir %]' --level critical
+  exit 1
+fi
+
+input_bucket_uri=[% google.cram_bucket %]/[% sample.sample_id %]
+output_bucket_uri=[% google.recab_bucket %]/[% sample.sample_id %]
+recab_file=[% sample.sample_id %].recab.cram
+
+$MAPPER_LOG_CMD --message 'begining post-align for sample [% sample.sample_id %]'
+[% settings.project_dir %]/bin/gce-post-align.sh $input_bucket_uri $output_bucket_uri/$recab_file
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message '[% sample.sample_id %] failed post-align' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+OUT_DIR=[% settings.out_dir %]
+if [ ! -e $OUT_DIR ]; then
+  $MAPPER_LOG_CMD --message "missing OUT_DIR $OUT_DIR, creating"
+  mkdir -pv $OUT_DIR
+fi
+
+gsutil -m rsync -r $output_bucket_uri $OUT_DIR
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed to download recab cram for sample [% sample.sample_id %]' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+flagstat_file=$OUT_DIR/${recab_file}.flagstat
+[% gotcloud.samtools %] flagstat $OUT_DIR/$recab_file > $flagstat_file
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to flagstat $flagstat_file" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+orig_reads=[% sample.flagstat %]
+recab_reads=$(grep 'paired in sequencing' $flagstat_file | awk {'print $1'})
+if [ $recab_reads -ne $orig_reads ]; then
+  $MAPPER_LOG_CMD --message "recab cram reads do not match original $orig_reads:$recab_reads" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message 'cloud-recab for [% sample.sample_id %] completed'
+$MAPPER_UPDATE_CMD --state completed --exit-code 0
+
+exit 0

@@ -1,0 +1,170 @@
+#!/bin/sh
+[% IF settings.cluster == 'csg' -%]
+#SBATCH --nodes=1-1
+#SBATCH --cpus-per-task=[% job.procs %]
+#SBATCH --mem=[% job.memory %]
+#SBATCH --time=[% job.walltime %]
+#SBATCH --workdir=[% job.workdir %]
+#SBATCH --partition=topmed
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=[% job.email %]
+#SBATCH --job-name=[% job.job_name %]
+#SBATCH --begin=now+[% job.jobs_cnt * 10 %]
+#SBATCH --qos=topmed-cloud-bam2fastq
+
+JOB_ID=$SLURM_JOB_ID
+NODELIST=$SLURM_JOB_NODELIST
+[% ELSIF settings.cluster == 'flux' -%]
+#PBS -l nodes=1:ppn=[% job.procs %]
+#PBS -l walltime=[% job.walltime %]
+#PBS -l pmem=[% job.memory %]gb
+#PBS -m a
+#PBS -d [% job.workdir %]
+#PBS -M [% job.email %]
+#PBS -q flux
+#PBS -l qos=flux
+#PBS -A [% job.account %]
+#PBS -V
+#PBS -j oe
+#PBS -N [% job.job_name %]
+
+JOB_ID=$PBS_JOBID
+NODELIST=$(cat $PBS_NODEFILE)
+[% END -%]
+
+set -u -o pipefail
+
+export PERL_CARTON_PATH=[% settings.project_dir %]/local
+export PERL5LIB=${PERL_CARTON_PATH}/lib/perl5:[% settings.project_dir %]/lib/perl5:${PERL5LIB}
+export PATH=[% settings.project_dir %]/bin:${PERL_CARTON_PATH}/bin:${PATH}
+
+META_ID=[% settings.meta_id %]
+MAPPER_CMD=[% settings.mapper_cmd %]
+MAPPER_LOG_CMD="$MAPPER_CMD log --meta-id $META_ID"
+MAPPER_UPDATE_CMD="$MAPPER_CMD update --meta-id $META_ID --step [% settings.step %]"
+TMP_DIR=[% settings.tmp_dir %]
+
+$MAPPER_UPDATE_CMD --start --job-id $JOB_ID --node $NODELIST
+$MAPPER_LOG_CMD --message 'starting bam2fastq'
+
+JOB_TMP_BASE=/tmp/[% settings.project %]
+[% IF settings.cluster == 'csg' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    job_state="$(sacct -j $id -X -n -o state%7)"
+    if [ "$job_state" != "RUNNING " ]; then # XXX - left trailing space on purpose
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% ELSIF settings.cluster == 'flux' -%]
+if [ -d $JOB_TMP_BASE ]; then
+  for id in $(ls -1 $JOB_TMP_BASE); do
+    if [ $id == 'hg38' ]; then
+      continue
+    fi
+
+    qstat -f -e $id > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      tmp_dir=${JOB_TMP_BASE}/${id}
+      $MAPPER_LOG_CMD --message "removing stale job tmp directory $tmp_dir"
+      rm -vrf $tmp_dir
+    fi
+  done
+fi
+[% END -%]
+
+JOB_TMP_DIR=${JOB_TMP_BASE}/${JOB_ID}
+$MAPPER_LOG_CMD --message "creating JOB_TMP_DIR $JOB_TMP_DIR"
+mkdir -vp $JOB_TMP_DIR
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+elif [ ! -d $JOB_TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create JOB_TMP_DIR $JOB_TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+if [ -e $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "removing existing TMP_DIR $TMP_DIR"
+  rm -vrf $TMP_DIR
+fi
+
+$MAPPER_LOG_CMD --message "creating TMP_DIR $TMP_DIR"
+mkdir -vp $TMP_DIR
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to create TMP_DIR $TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+elif [ ! -d $TMP_DIR ]; then
+  $MAPPER_LOG_CMD --message "mkdir returned success but did not create TMP_DIR $TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message "setting permissions on TMP_DIR $TMP_DIR"
+chmod 750 $TMP_DIR
+
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to set permissions on TMP_DIR $TMP_DIR" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_CMD show --job-info $META_ID > [% settings.job_log %].$JOB_ID
+$MAPPER_CMD show --sample-info [% sample.sample_id %] >> [% settings.job_log %].$JOB_ID
+
+incoming_bucket_uri=[% google.incoming_bucket %]/[% sample.center %]/[% sample.run_dir %]/[% sample.filename %]
+output_bucket_uri=[% google.fastq_bucket %]/[% sample.sample_id %]
+
+$MAPPER_LOG_CMD --message "uploading [% sample.sample_id %] to google storage bucket $incoming_bucket_uri"
+gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp -n [% sample.incoming_path %] $incoming_bucket_uri
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message "failed to upload to bucket $incoming_bucket_uri" --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message "beginning bam2fastq pipeline from $incoming_bucket_uri to $output_bucket_uri"
+[% settings.project_dir %]/bin/gce-pre-align.sh $incoming_bucket_uri $output_bucket_uri
+if [ $? -ne 0 ]; then
+  $MAPPER_LOG_CMD --message 'failed bam2fastq pipeline' --level critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+fastq_list=[% job.workdir %]/[% sample.sample_id %].list
+$MAPPER_LOG_CMD --message "fetching fastq list file to $fastq_list"
+gsutil cp $output_bucket_uri/[% sample.sample_id %].list $fastq_list
+if [ $? -eq 0 ]; then
+  $MAPPER_LOG_CMD --message "processing fastq list $fastq_list"
+  $MAPPER_UPDATE_CMD --fastq-list $fastq_list
+
+  if [ $? -ne 0 ]; then
+    $MAPPER_LOG_CMD --message "failed to process the fastq list file" --level critical
+    $MAPPER_UPDATE_CMD --state failed
+    exit 1
+  fi
+else
+  $MAPPER_LOG_CMD --message "failed to fetch fastq list" --critical
+  $MAPPER_UPDATE_CMD --state failed
+  exit 1
+fi
+
+$MAPPER_LOG_CMD --message "deleteing job tmp directory $JOB_TMP_DIR"
+rm -vrf $JOB_TMP_DIR
+
+$MAPPER_LOG_CMD --message "[% settings.pipeline %] completed"
+$MAPPER_UPDATE_CMD --state completed --exit-code 0
+
+exit 0

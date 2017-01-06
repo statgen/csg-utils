@@ -172,6 +172,8 @@ __PACKAGE__->belongs_to(
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 #
+use CSG::Constants;
+
 sub status_line {
   my ($self) = @_;
 
@@ -281,9 +283,37 @@ sub completed_step {
   return $self->current_state_for_step($step) eq 'completed';
 }
 
+sub completed_previous_step {
+  my ($self, $step) = @_;
+
+  my $schema = $self->result_source->schema;
+  my $next   = $schema->resultset('Step')->find({name => $step});
+
+  if ($next->has_parent) {
+    return $FALSE unless $self->completed_step($next->parent->name);
+  }
+
+  return $TRUE;
+}
+
 sub requested_step {
   my ($self, $step) = @_;
   return $self->current_state_for_step($step) eq 'requested';
+}
+
+sub cancelled_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'cancelled';
+}
+
+sub failed_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'failed';
+}
+
+sub submitted_step {
+  my ($self, $step) = @_;
+  return $self->current_state_for_step($step) eq 'submitted';
 }
 
 1;

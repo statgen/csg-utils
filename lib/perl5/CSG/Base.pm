@@ -21,7 +21,7 @@ our @IMPORT_MODULES = (
 
 our %IMPORT_BUNDLES = (
   cmd => [
-    'IPC::System::Simple' => [qw(run capture EXIT_ANY)],
+    'IPC::System::Simple' => [qw(run capture EXIT_ANY $EXITVAL)],
     'System::Command',
     'Capture::Tiny',
   ],
