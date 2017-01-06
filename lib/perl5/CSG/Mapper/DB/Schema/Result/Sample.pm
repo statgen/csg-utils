@@ -331,6 +331,11 @@ sub is_available {
   my $result  = $self->results->find({build => $build});
   my $step_rs = $self->result_source->schema->resultset('Step')->find({name => $step});
 
+  # TODO - if a sample has completed a step that has the same parent as
+  #        as the current step then we don't need to do the current step.
+  #        it is likely that the sample went through the local version of the cloud
+  #        step or vice versa
+
   # XXX - has no result and step has no previous step
   return $TRUE if (not $result and not $step_rs->has_parent);
 
