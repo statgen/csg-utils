@@ -23,11 +23,11 @@ sub validate_args {
   my $project = $schema->resultset('Project')->find({name => $self->app->global_options->{project}});
 
   unless ($project) {
-    $self->usage_error('project does not exist');
+    $self->exit_with_error('project does not exist');
   }
 
   unless ($project->has_slot($opts->{name})) {
-    $self->usage_error('slot does not exist');
+    $self->exit_with_error('slot does not exist');
   }
 }
 

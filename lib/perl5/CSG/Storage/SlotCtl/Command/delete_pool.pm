@@ -18,7 +18,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   unless ($schema->resultset('Pool')->find($opts->{pool_id})) {
-    $self->usage_error("Pool id, $opts->{pool_id}, does not exist!");
+    $self->exit_with_error("Pool id, $opts->{pool_id}, does not exist!");
   }
 }
 

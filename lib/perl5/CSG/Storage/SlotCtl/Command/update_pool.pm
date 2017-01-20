@@ -19,12 +19,12 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   unless ($schema->resultset('Pool')->find($opts->{id})) {
-    $self->usage_error('invalid pool id');
+    $self->exit_with_error('invalid pool id');
   }
 
   if ($opts->{name}) {
     if ($schema->resultset('Pool')->find({name => $opts->{name}})) {
-      $self->usage_error('pool name already in use');
+      $self->exit_with_error('pool name already in use');
     }
   }
 }

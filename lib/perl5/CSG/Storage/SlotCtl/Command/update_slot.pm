@@ -19,7 +19,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   unless ($schema->resultset('Slot')->find($opts->{id})) {
-    $self->usage_error('Unable to locate slot');
+    $self->exit_with_error('Unable to locate slot');
   }
 }
 

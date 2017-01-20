@@ -14,7 +14,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   if ($schema->resultset('Type')->find({name => $opts->{name}})) {
-    $self->usage_error('type already exists');
+    $self->exit_with_error('type already exists');
   }
 }
 

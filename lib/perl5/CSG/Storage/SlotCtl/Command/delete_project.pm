@@ -18,7 +18,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   unless ($schema->resultset('Project')->find($opts->{project_id})) {
-    $self->usage_error("Project id, $opts->{project_id}, does not exist!");
+    $self->exit_with_error("Project id, $opts->{project_id}, does not exist!");
   }
 }
 

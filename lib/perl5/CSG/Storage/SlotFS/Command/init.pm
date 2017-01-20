@@ -22,7 +22,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   if ($opts->{prefix} and not -e $opts->{prefix}) {
-    $self->usage_error('Prefix must exist');
+    $self->exit_with_error('Prefix must exist');
   }
 }
 

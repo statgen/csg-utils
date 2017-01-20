@@ -20,16 +20,16 @@ sub validate_args {
 
   my $schema = CSG::Storage::Slots::DB->new();
   unless ($schema->resultset('Project')->find({name => $self->app->global_options->{project}})) {
-    $self->usage_error('project does not exist');
+    $self->exit_with_error('project does not exist');
   }
 
   if ($schema->resultset('Pool')->find({name => $opts->{name}})) {
-    $self->usage_error('pool already exists');
+    $self->exit_with_error('pool already exists');
   }
 
   my $prefix = $self->app->global_options->{prefix};
   if ($opts->{path} =~ /^$prefix/) {
-    $self->usage_error("Prefix path, $prefix, should not be included in pool path, $opts->{path}");
+    $self->exit_with_error("Prefix path, $prefix, should not be included in pool path, $opts->{path}");
   }
 }
 

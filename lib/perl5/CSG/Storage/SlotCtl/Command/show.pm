@@ -18,7 +18,7 @@ sub validate_args {
   my $project = $self->app->global_options->{project};
 
   unless (CSG::Storage::Slots->exists(name => $name, project => $project)) {
-    $self->usage_error("Slot, $name, does not exists in project, $project");
+    $self->exit_with_error("Slot, $name, does not exists in project, $project");
   }
 }
 

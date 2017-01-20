@@ -23,11 +23,11 @@ sub validate_args {
   my $schema = CSG::Storage::Slots::DB->new();
   my $project = $schema->resultset('Project')->find({name => $opts->{project}});
   unless ($project) {
-    $self->usage_error('Project does not exist');
+    $self->exit_with_error('Project does not exist');
   }
 
   unless ($schema->resultset('Slot')->find_slot($opts->{name}, $opts->{project})) {
-    $self->usage_error('Slot does not exist');
+    $self->exit_with_error('Slot does not exist');
   }
 }
 

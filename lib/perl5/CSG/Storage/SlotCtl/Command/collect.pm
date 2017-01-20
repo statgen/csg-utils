@@ -19,7 +19,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   if ($opts->{prefix} and not -e $opts->{prefix}) {
-    $self->usage_error('PREFIX does not exist');
+    $self->exit_with_error('PREFIX does not exist');
   }
 }
 

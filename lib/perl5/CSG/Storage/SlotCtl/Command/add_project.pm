@@ -14,7 +14,7 @@ sub validate_args {
   my ($self, $opts, $args) = @_;
 
   if ($schema->resultset('Project')->find({name => $self->app->global_options->{project}})) {
-    $self->usage_error('project already exists');
+    $self->exit_with_error('project already exists');
   }
 }
 

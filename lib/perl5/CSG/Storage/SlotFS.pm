@@ -1,6 +1,6 @@
 package CSG::Storage::SlotFS;
 
-use App::Cmd::Setup -app;
+use App::Cmd::Setup -app => {plugins => ['Logger']};
 
 sub global_opt_spec {
   return (
